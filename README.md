@@ -1,7 +1,7 @@
 # SimpleHttpServer
 
 #### 介绍
-使用FastDo异步框架编写的一个简易HTTP服务器。
+使用FastDo的异步任务功能编写的一个简易HTTP服务器。
 
 #### 软件架构
 软件架构说明

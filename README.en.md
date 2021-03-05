@@ -1,9 +1,10 @@
 # SimpleHttpServer
 
 #### Description
-使用FastDo异步框架编写的一个简易HTTP服务器。
+A simple HTTP server written using FastDo's asynchronous task.
 
 #### Software Architecture
+
 Software architecture description
 
 #### Installation
