@@ -13,6 +13,24 @@ namespace
     ConsoleAttrT<int> colorOk( fgGreen, 0 );
     ConsoleAttrT<int> colorWarnning( fgFuchsia, 0 );
     ConsoleAttrT<int> colorError( fgRed, 0 );
+    bool __outputVerbose = true;
+}
+
+void ColorOutput( ConsoleAttrT<int> & ca )
+{
+    cout << endl;
+}
+
+template < typename _Ty, typename... _ArgType >
+void ColorOutput( ConsoleAttrT<int> & ca, _Ty&& a, _ArgType&& ... arg )
+{
+    if ( __outputVerbose )
+    {
+        ca.modify();
+        cout << a;
+        ca.resume();
+        ColorOutput( ca, forward<_ArgType>(arg)... );
+    }
 }
 
 // 客户连接场景
@@ -33,26 +51,66 @@ struct ClientCtx
 // 服务器场景
 struct ServerCtx
 {
-    ThreadPool pool;
-    Mutex mtxServer;
-    uint64 cumulativeClientId = 0; // 客户唯一标识
+    // 服务器配置
+    struct ServerConfig
+    {
+        String serverIp;
+        ushort serverPort;
+        String documentRoot;
+
+        int listenBacklog;
+        int threadCount;
+        int aliveTime;
+
+        // 加载配置参数
+        ServerConfig( Configure const & confObj )
+        {
+            serverIp = confObj.has("server_ip") ? confObj("server_ip") : "";
+            serverPort = confObj.has("server_port") ? Mixed( confObj("server_port") ).toUShort() : 8080U;
+            documentRoot = confObj.has("document_root") ? confObj("document_root") : "";
+            __outputVerbose = true;
+            if ( confObj.has("verbose") ) Mixed::ParseBool( confObj("verbose"), &__outputVerbose );
+            listenBacklog = confObj.has("listen_backlog") ? Mixed( confObj("listen_backlog") ).toInt() : 10;
+            threadCount = confObj.has("thread_count") ? Mixed( confObj("thread_count") ).toInt() : 8;
+            aliveTime = confObj.has("alive_time") ? Mixed( confObj("alive_time") ).toInt() : 30;
+
+            if ( __outputVerbose )
+            {
+                ColorOutput( colorPrompt, "server_ip: ", serverIp );
+                ColorOutput( colorPrompt, "server_port: ", serverPort );
+                ColorOutput( colorPrompt, "document_root: ", documentRoot );
+                ColorOutput( colorPrompt, "listen_backlog: ", listenBacklog );
+                ColorOutput( colorPrompt, "thread_count: ", threadCount );
+                ColorOutput( colorPrompt, "alive_time: ", aliveTime );
+            }
+        }
+    } const config;
+
+    ThreadPool pool; // 线程池
+    Mutex mtxServer; // 互斥量保护服务共享数据
+    uint64 cumulativeClientId; // 客户唯一标识
+    bool stop; // 是否停止
     ip::tcp::Socket servSock; // 服务器监听套接字
     map< uint64, SharedPointer<ClientCtx> > clients;
-    bool stop = false;
 
-    ServerCtx( int poolThreadCount ) : pool( poolThreadCount, ThreadPool::modeWaitTimeRePost ), mtxServer(true)
+    ServerCtx( Configure const & confObj ) :
+        config(confObj),
+        pool( config.threadCount, ThreadPool::modeWaitTimeRePost ),
+        mtxServer(true),
+        cumulativeClientId(0),
+        stop(false)
     {
-        servSock.bind( "", 8080 );
-        servSock.listen(10);
+        servSock.bind( config.serverIp, config.serverPort );
+        servSock.listen(config.listenBacklog);
     }
 
+    // 接受一个连接并放入服务器客户表中
     uint64 acceptToClients()
     {
         ip::EndPoint epClient;
         auto clientSock = servSock.accept(&epClient);
-        colorPrompt.modify();
-        cout << "Client `" << epClient.toString() << "` 到来" << endl;
-        colorPrompt.resume();
+        ColorOutput( colorPrompt, "Client `", epClient.toString(), "` 到来" );
+
         {
             ScopeGuard guard(mtxServer);
             ++cumulativeClientId;
@@ -61,15 +119,15 @@ struct ServerCtx
         }
     }
 
+    // 移除一个客户
     void removeClient( uint64 clientId )
     {
         ScopeGuard guard(mtxServer);
-        colorError.modify();
-        cout << "Client `" << clients[clientId]->clientEp.toString() << "` 断开" << endl;
-        colorError.resume();
+        ColorOutput( colorError, "Client `", clients[clientId]->clientEp.toString(), "` 断开" );
         clients.erase(clientId);
     }
 
+    // 根据客户ID取得客户场景
     SharedPointer<ClientCtx> at( uint64 clientId )
     {
         ScopeGuard guard(mtxServer);
@@ -78,27 +136,24 @@ struct ServerCtx
 };
 
 // 读取一个请求头
-bool ReadHeader( ClientCtx * client, SocketStreamBuf * sockBuf, string * headerStr )
+bool ReadHeader( ServerCtx * server, ClientCtx * client, SocketStreamBuf * sockBuf, string * headerStr )
 {
     istream sockIn(sockBuf);
     string nlnl = "\r\n\r\n";
     bool complete = true;
-    constexpr int RETRY_COUNT = 30;
-    int retryCount = RETRY_COUNT;
+    int retryCount = server->config.aliveTime;
     // 如果接收的数据长度不到定界符长度或者还未收到定界符，则不停接收
     while ( headerStr->length() < nlnl.length() || headerStr->substr( headerStr->length() - nlnl.length() ) != nlnl )
     {
         // 缓冲区有数据可直接读或者监听到有数据到来
         if ( sockBuf->in_avail() > 0 || io::SelectRead( sockBuf->getSocket() ).wait(1) > 0 )
         {
-            retryCount = RETRY_COUNT;
+            retryCount = server->config.aliveTime;
 
             int ch;
             if ( ( ch = sockIn.get() ) == -1 )
             {
-                colorError.modify();
-                cout << "Client `" << client->clientEp.toString() << "` 接收数据出错" << endl;
-                colorError.resume();
+                ColorOutput( colorError, "Client `", client->clientEp.toString(), "` 接收数据出错" );
 
                 complete = false;
                 break;
@@ -107,11 +162,9 @@ bool ReadHeader( ClientCtx * client, SocketStreamBuf * sockBuf, string * headerS
         }
         else
         {
-            colorWarnning.modify();
-            cout << "Client `" << client->clientEp.toString() << "` 没有数据到来" << retryCount << "s\n";
-            colorWarnning.resume();
+            ColorOutput( colorWarnning, "Client `", client->clientEp.toString(), "` 没有数据到来", retryCount, "s" );
 
-            if ( --retryCount == 0 )
+            if ( --retryCount < 1 )
             {
                 complete = false;
                 break;
@@ -128,11 +181,9 @@ void RequestTaskRoutine( ServerCtx * server, SharedPointer<ClientCtx> client )
 
     // 读取头部完整
     string headerStr;
-    if ( ReadHeader( client.get(), &ssb, &headerStr ) )
+    if ( ReadHeader( server, client.get(), &ssb, &headerStr ) )
     {
-        colorOk.modify();
-        cout << "Client `" << client->clientEp.toString() << "` 接收头部(bytes:" << headerStr.size() << ")" << endl;
-        colorOk.resume();
+        ColorOutput( colorOk, "Client `", client->clientEp.toString(), "` 接收头部(bytes:", headerStr.size(), ")" );
 
         ostream clientOut(&ssb);
 
@@ -144,9 +195,7 @@ void RequestTaskRoutine( ServerCtx * server, SharedPointer<ClientCtx> client )
         // url router
         if ( reqHdr.getUrl() == "/" )
         {
-            colorAction.modify();
-            cout << "request_url: " << reqHdr.getUrl() << endl;
-            colorAction.resume();
+            ColorOutput( colorAction, "request_url: ", reqHdr.getUrl() );
 
             // 响应
             string rspBody = "Hello, My HTTP server!";
@@ -160,9 +209,7 @@ void RequestTaskRoutine( ServerCtx * server, SharedPointer<ClientCtx> client )
         }
         else
         {
-            colorAction.modify();
-            cout << "request_url: " << reqHdr.getUrl() << endl;
-            colorAction.resume();
+            ColorOutput( colorAction, "request_url: ", reqHdr.getUrl() );
 
             // 响应
             string rspBody = "HTTP 404 not found!";
@@ -187,9 +234,7 @@ void RequestTaskRoutine( ServerCtx * server, SharedPointer<ClientCtx> client )
     }
     else // 头部不完整，移除连接
     {
-        colorError.modify();
-        cout << "Client `" << client->clientEp.toString() << "` 接收头部不完整或不正确(bytes:" << headerStr.size() << ")" << endl;
-        colorError.resume();
+        ColorOutput( colorError, "Client `", client->clientEp.toString(), "` 接收头部不完整或不正确(bytes:", headerStr.size(), ")" );
         server->removeClient(client->clientId);
     }
 }
@@ -197,7 +242,7 @@ void RequestTaskRoutine( ServerCtx * server, SharedPointer<ClientCtx> client )
 int main()
 {
     SocketLib init;
-    ServerCtx serv(10);
+    ServerCtx serv( Configure("server.conf") );
 
     while ( !serv.stop )
     {
