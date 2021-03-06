@@ -57,6 +57,7 @@ struct ServerCtx
         String serverIp;
         ushort serverPort;
         String documentRoot;
+        String documentIndex;
 
         int listenBacklog;
         int threadCount;
@@ -68,6 +69,7 @@ struct ServerCtx
             serverIp = confObj.has("server_ip") ? confObj("server_ip") : "";
             serverPort = confObj.has("server_port") ? Mixed( confObj("server_port") ).toUShort() : 8080U;
             documentRoot = confObj.has("document_root") ? confObj("document_root") : "";
+            documentIndex = confObj.has("document_index") ? confObj("document_index") : "index.html";
             __outputVerbose = true;
             if ( confObj.has("verbose") ) Mixed::ParseBool( confObj("verbose"), &__outputVerbose );
             listenBacklog = confObj.has("listen_backlog") ? Mixed( confObj("listen_backlog") ).toInt() : 10;
@@ -79,6 +81,7 @@ struct ServerCtx
                 ColorOutput( colorPrompt, "server_ip: ", serverIp );
                 ColorOutput( colorPrompt, "server_port: ", serverPort );
                 ColorOutput( colorPrompt, "document_root: ", documentRoot );
+                ColorOutput( colorPrompt, "document_index: ", documentIndex );
                 ColorOutput( colorPrompt, "listen_backlog: ", listenBacklog );
                 ColorOutput( colorPrompt, "thread_count: ", threadCount );
                 ColorOutput( colorPrompt, "alive_time: ", aliveTime );
@@ -174,53 +177,81 @@ bool ReadHeader( ServerCtx * server, ClientCtx * client, SocketStreamBuf * sockB
     return complete;
 }
 
+// MIME
+map< String, String > __mime{
+    { "html", "text/html" },
+    { "css", "text/css" },
+    { "js", "text/javascript" },
+    { "jpg", "image/jpeg" },
+    { "png", "image/png" },
+    { "gif", "image/gif" },
+    { "ico", "image/x-icon" }
+};
+
+String GetMime( String const & extName )
+{
+    return isset(__mime, extName ) ? __mime[extName] : "application/octet-stream";
+}
+
+// url router
+void UrlRouter( ServerCtx * server, ClientCtx * client, SocketStreamBuf * sockBuf, http::Header & reqHdr )
+{
+    ostream clientOut(sockBuf);
+
+    http::Url url( reqHdr.getUrl() );
+    ColorOutput( colorAction, "request_url: ", url.toString() );
+
+    String urlPath = url.getPath();
+    urlPath = !urlPath.empty() ? urlPath : server->config.documentIndex;
+    String filePath = CombinePath( server->config.documentRoot, urlPath );
+
+    ColorOutput( colorAction, "file_path: ", filePath );
+    if ( DetectPath( filePath ) )
+    {
+        String extName;
+        FileTitle( filePath, &extName );
+
+        File docfile( filePath, "rb" );
+        // 响应
+        AnsiString rspBody = docfile.buffer();
+        http::Header rspHdr;
+        rspHdr.setResponseLine( "HTTP/1.1 200 OK", false );
+        rspHdr["Content-Type"] = GetMime(extName);
+        rspHdr( "Content-Length" ) << rspBody.length();
+
+        // 输出响应
+        clientOut << rspHdr.toString() << rspBody;
+    }
+    else
+    {
+        // 响应
+        string rspBody = "HTTP 404 not found!";
+        http::Header rspHdr;
+        rspHdr.setResponseLine( "HTTP/1.1 404 Not Found", false );
+        rspHdr["Content-Type"] = "text/html";
+        rspHdr( "Content-Length" ) << rspBody.length();
+
+        // 输出响应
+        clientOut << rspHdr.toString() << rspBody;
+    }
+}
+
 // 一个请求任务例程
 void RequestTaskRoutine( ServerCtx * server, SharedPointer<ClientCtx> client )
 {
-    SocketStreamBuf ssb( client->clientSockPtr.get() );
+    SocketStreamBuf sockBuf( client->clientSockPtr.get() );
 
     // 读取头部完整
     string headerStr;
-    if ( ReadHeader( server, client.get(), &ssb, &headerStr ) )
+    if ( ReadHeader( server, client.get(), &sockBuf, &headerStr ) )
     {
         ColorOutput( colorOk, "Client `", client->clientEp.toString(), "` 接收头部(bytes:", headerStr.size(), ")" );
 
-        ostream clientOut(&ssb);
-
         http::Header reqHdr;
         reqHdr.parse(headerStr);
-
         cout << reqHdr.toString();
 
-        // url router
-        if ( reqHdr.getUrl() == "/" )
-        {
-            ColorOutput( colorAction, "request_url: ", reqHdr.getUrl() );
-
-            // 响应
-            string rspBody = "Hello, My HTTP server!";
-            http::Header rspHdr;
-            rspHdr.setResponseLine( "HTTP/1.1 200 OK", false );
-            rspHdr["Content-Type"] = "text/html";
-            rspHdr("Content-Length") << rspBody.length();
-
-            // 输出响应
-            clientOut << rspHdr.toString() << rspBody;
-        }
-        else
-        {
-            ColorOutput( colorAction, "request_url: ", reqHdr.getUrl() );
-
-            // 响应
-            string rspBody = "HTTP 404 not found!";
-            http::Header rspHdr;
-            rspHdr.setResponseLine( "HTTP/1.1 404 Not Found", false );
-            rspHdr["Content-Type"] = "text/html";
-            rspHdr("Content-Length") << rspBody.length();
-
-            // 输出响应
-            clientOut << rspHdr.toString() << rspBody;
-        }
+        UrlRouter( server, client.get(), &sockBuf, reqHdr );
 
         // 如果不保活就删除连接，否则继续投请求任务
         if ( StrLower( reqHdr["Connection"] ) != "keep-alive" )

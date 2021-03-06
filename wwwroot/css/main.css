@@ -1,0 +1,62 @@
+body {
+    font-size: 14px;
+    font-family: '微软雅黑','黑体';
+}
+
+p {
+    margin: 4px 0 12px 0;
+}
+
+ul, ol {
+    margin: 4px 0 12px 0;
+}
+
+ul li, ol li {
+    /*border-bottom: solid #000 1px;*/
+    margin-bottom: 4px;
+}
+ul li { list-style-type: circle; }
+
+h1, h2, h3, h4, h5 {
+    margin: 0;
+	color:#004DBB;
+}
+
+h1, .h1 { font-size: 28px; }
+h2, .h2 { font-size: 26px; }
+h3, .h3 { font-size: 20px; color:#4F81BD; }
+h4, .h4 { font-size: 16px; color:#8065C0; }
+h5, .h5 { font-size: 14px; color:#9C85C0; }
+
+code pre {
+    margin: 0;
+    padding: 2px;
+    font-family: 'Source Code Pro', 'lucida console', sans-serif;
+    font-size: 13px;
+    background: #eeeeee;
+}
+
+hr {
+    margin: 20px 0;
+}
+
+var {
+    font-family: 'Source Code Pro', 'lucida console', sans-serif;
+    font-size: 13px;
+    border-radius: 4px;
+    padding: 0 4px;
+    border: dashed 1px #999;
+    font-style: normal;
+}
+var.ok { color:#00B050; }
+var.warn { color:#F79646; }
+var.err { color:#DD8484; }
+
+table {
+    border: solid 1px #999999;
+    border-collapse: collapse;
+}
+table tr td, table tr th {
+    padding: 4px 12px;
+    border: dashed 1px #999999;
+}
