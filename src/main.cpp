@@ -1,9 +1,11 @@
 ﻿
 #include <winux.hpp>
 #include <eiennet.hpp>
+#include <eientpl.hpp>
 
 using namespace winux;
 using namespace eiennet;
+using namespace eientpl;
 using namespace std;
 
 namespace
@@ -40,10 +42,7 @@ struct ClientCtx
     ip::EndPoint clientEp;
     SharedPointer<ip::tcp::Socket> clientSockPtr;
     ClientCtx() : clientId(0) { }
-    ClientCtx( uint64 clientId, ip::EndPoint ep, SharedPointer<ip::tcp::Socket> newSockPtr ) :
-        clientId(clientId),
-        clientEp(ep),
-        clientSockPtr(newSockPtr)
+    ClientCtx( uint64 clientId, ip::EndPoint ep, SharedPointer<ip::tcp::Socket> newSockPtr ) : clientId(clientId), clientEp(ep), clientSockPtr(newSockPtr)
     {
     }
 };
@@ -87,7 +86,7 @@ struct ServerCtx
                 ColorOutput( colorPrompt, "alive_time: ", aliveTime );
             }
         }
-    } const config;
+    } const config; // 配置参数
 
     ThreadPool pool; // 线程池
     Mutex mtxServer; // 互斥量保护服务共享数据
@@ -141,7 +140,7 @@ struct ServerCtx
 // 读取一个请求头
 bool ReadHeader( ServerCtx * server, ClientCtx * client, SocketStreamBuf * sockBuf, string * headerStr )
 {
-    istream sockIn(sockBuf);
+    istream clientIn(sockBuf);
     string nlnl = "\r\n\r\n";
     bool complete = true;
     int retryCount = server->config.aliveTime;
@@ -154,7 +153,7 @@ bool ReadHeader( ServerCtx * server, ClientCtx * client, SocketStreamBuf * sockB
             retryCount = server->config.aliveTime;
 
             int ch;
-            if ( ( ch = sockIn.get() ) == -1 )
+            if ( ( ch = clientIn.get() ) == -1 )
             {
                 ColorOutput( colorError, "Client `", client->clientEp.toString(), "` 接收数据出错" );
 
@@ -206,6 +205,7 @@ void UrlRouter( ServerCtx * server, ClientCtx * client, SocketStreamBuf * sockBu
     String filePath = CombinePath( server->config.documentRoot, urlPath );
 
     ColorOutput( colorAction, "file_path: ", filePath );
+    // 文件是否存在
     if ( DetectPath( filePath ) )
     {
         String extName;
@@ -249,7 +249,8 @@ void RequestTaskRoutine( ServerCtx * server, SharedPointer<ClientCtx> client )
 
         http::Header reqHdr;
         reqHdr.parse(headerStr);
-        cout << reqHdr.toString();
+        if ( __outputVerbose )
+            cout << reqHdr.toString();
 
         UrlRouter( server, client.get(), &sockBuf, reqHdr );
 
