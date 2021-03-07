@@ -10,21 +10,21 @@ using namespace std;
 
 namespace
 {
-    ConsoleAttrT<int> colorPrompt( fgYellow, 0 );
-    ConsoleAttrT<int> colorAction( fgAqua, 0 );
-    ConsoleAttrT<int> colorOk( fgGreen, 0 );
-    ConsoleAttrT<int> colorWarnning( fgFuchsia, 0 );
-    ConsoleAttrT<int> colorError( fgRed, 0 );
+    ConsoleAttr colorPrompt(fgYellow);
+    ConsoleAttr colorAction(fgAqua);
+    ConsoleAttr colorOk(fgGreen);
+    ConsoleAttr colorWarnning(fgFuchsia);
+    ConsoleAttr colorError(fgRed);
     bool __outputVerbose = true;
 }
 
-void ColorOutput( ConsoleAttrT<int> & ca )
+void ColorOutput( ConsoleAttr & ca )
 {
     cout << endl;
 }
 
 template < typename _Ty, typename... _ArgType >
-void ColorOutput( ConsoleAttrT<int> & ca, _Ty&& a, _ArgType&& ... arg )
+void ColorOutput( ConsoleAttr & ca, _Ty&& a, _ArgType&& ... arg )
 {
     if ( __outputVerbose )
     {
