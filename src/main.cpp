@@ -9,7 +9,8 @@ using namespace std;
 int main()
 {
     SocketLib init;
-    HttpServer server( winux::Configure("server.conf") );
+    HttpServerConfig config( winux::Configure("server.conf") );
+    HttpServer server(config);
 
     server.setHandler( "hello", [] (RESPONSE_HANDLER_PARAMS) {
         rspOut << "Hello world!";
