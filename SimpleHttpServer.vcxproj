@@ -164,6 +164,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\v2_base.cpp" />
+    <ClCompile Include="src\v2_ClientCtx.cpp" />
+    <ClCompile Include="src\v2_HttpClientCtx.cpp" />
+    <ClCompile Include="src\v2_HttpServer.cpp" />
+    <ClCompile Include="src\v2_Server.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\v2_base.hpp" />
+    <ClInclude Include="src\v2_ClientCtx.hpp" />
+    <ClInclude Include="src\v2_HttpClientCtx.hpp" />
+    <ClInclude Include="src\v2_HttpServer.hpp" />
+    <ClInclude Include="src\v2_Server.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
