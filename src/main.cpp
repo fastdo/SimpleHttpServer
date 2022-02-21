@@ -14,11 +14,7 @@ int startup()
     SocketLib initSock;
     HttpServer server( ip::EndPoint("127.0.0.1:18080") );
 
-    server.onClientDataArrivedHandler( [] ( SharedPointer<ClientCtx> clientCtxPtr, winux::Buffer ) {
-        if ( v2::outputVerbose ) ColorOutput( fgAqua, "onClientDataArrived" );
-    } );
-
-    server.onClientRequestHeaderHandler( [&server] ( SharedPointer<HttpClientCtx> clientCtxPtr, http::Header const & header ) {
+    server.onClientRequestHeaderHandler( [] ( SharedPointer<HttpClientCtx> clientCtxPtr, http::Header const & header ) {
         auto str = header.toString();
         if ( v2::outputVerbose ) ColorOutput( fgYellow, str, str.length() );
 

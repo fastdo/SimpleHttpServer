@@ -12,17 +12,16 @@ public:
     DEFINE_FUNC_NEWINSTANCE(
         ClientCtx,
         ClientCtx,
-        ( Server * server, winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr ),
-        ( server, clientId, clientEpStr, clientSockPtr )
+        ( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr ),
+        ( clientId, clientEpStr, clientSockPtr )
     )
 
-    ClientCtx( Server * server, winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr );
+    ClientCtx( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr );
 
     virtual ~ClientCtx();
 
     winux::String getStamp() const;
 
-    Server * server;
     winux::uint64 clientId;
     winux::String clientEpStr;
     winux::SharedPointer<ip::tcp::Socket> clientSockPtr;

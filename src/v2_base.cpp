@@ -5,7 +5,7 @@ namespace v2
 {
 
 // 是否输出提示
-bool outputVerbose = 1;
+bool outputVerbose = true;
 
 
 }

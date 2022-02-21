@@ -17,7 +17,7 @@ class Server
     )
 
 public:
-    using ClientCtxConstructor = ClientCtx * (*)( Server * server, winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr );
+    using ClientCtxConstructor = ClientCtx * (*)( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr );
 
     /** \brief 构造函数1
      *
@@ -43,7 +43,7 @@ protected:
     winux::uint64 _cumulativeClientId; // 客户唯一标识
     bool _stop; // 是否停止
     winux::ThreadPool _pool; // 线程池
-    winux::Mutex _mtxServer; // 互斥量保护服务器共享数据
+    //winux::Mutex _mtxServer; // 互斥量保护服务器共享数据
     ip::tcp::Socket _servSock; // 服务器监听套接字
     std::map< winux::uint64, winux::SharedPointer<ClientCtx> > _clients; // 客户表
     ClientCtxConstructor _clientConstructor; // 客户场景构造器

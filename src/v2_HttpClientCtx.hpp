@@ -9,8 +9,8 @@ public:
     DEFINE_FUNC_NEWINSTANCE(
         HttpClientCtx,
         ClientCtx,
-        ( Server * server, winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr ),
-        ( server, clientId, clientEpStr, clientSockPtr )
+        ( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr ),
+        ( clientId, clientEpStr, clientSockPtr )
     )
 
     using ClientCtx::ClientCtx;

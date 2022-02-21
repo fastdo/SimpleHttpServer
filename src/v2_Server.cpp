@@ -5,23 +5,22 @@
 
 namespace v2
 {
+
 Server::Server(ip::EndPoint const & ep, int threadCount /*= 4*/, int backlog /*= 0*/, ClientCtxConstructor clientConstructor /*= ClientCtx::NewInstance */) :
     _cumulativeClientId(0),
     _stop(false),
     _pool(threadCount),
-    _mtxServer(true),
+    //_mtxServer(true),
     _clientConstructor(clientConstructor)
 {
     _servSock.setReUseAddr(true);
     _stop = !( _servSock.eiennet::Socket::bind(ep) && _servSock.listen(backlog) );
 }
 
-
 Server::~Server()
 {
 
 }
-
 
 int Server::run()
 {
@@ -35,9 +34,9 @@ int Server::run()
 
         // 监视客户连接，移除标记为可移除的连接
         {
-            winux::ScopeGuard guard(this->_mtxServer);
+            //winux::ScopeGuard guard(this->_mtxServer);
 
-            if ( ++counter % 20 == 0 && outputVerbose ) winux::ColorOutput(winux::fgWhite, "总客户:", this->_clients.size(), ", 当前任务数:", this->_pool.getTaskCount());
+            if ( ++counter % 50 == 0 && outputVerbose ) winux::ColorOutput(winux::fgWhite, "总客户:", this->_clients.size(), ", 当前任务数:", this->_pool.getTaskCount());
 
             for ( auto it = this->_clients.begin(); it != this->_clients.end(); )
             {
@@ -54,7 +53,7 @@ int Server::run()
             }
         }
 
-        int rc = sel.wait(0.05);
+        int rc = sel.wait(0.02);
         if ( rc > 0 )
         {
             if ( outputVerbose ) winux::ColorOutput(winux::fgSilver, "Select模型获取到就绪的socks数:", rc);
@@ -85,11 +84,11 @@ int Server::run()
             if ( rc > 0 )
             {
                 //ScopeGuard guard(this->_mtxServer);
-                this->_mtxServer.lock();
+                //this->_mtxServer.lock();
 
                 for ( auto it = this->_clients.begin(); it != this->_clients.end(); )
                 {
-                    this->_mtxServer.unlock();
+                    //this->_mtxServer.unlock();
 
                     if ( sel.hasReadSock(*it->second->clientSockPtr.get()) ) // 有数据可读
                     {
@@ -111,9 +110,9 @@ int Server::run()
                             if ( outputVerbose ) winux::ColorOutput(winux::fgRed, it->second->getStamp(), "有数据到达(bytes:", arrivedSize, ")，对方了可能关闭了连接");
                             if ( outputVerbose ) winux::ColorOutput(winux::fgMaroon, it->second->getStamp(), "关闭并移除");
 
-                            this->_mtxServer.lock();
+                            //this->_mtxServer.lock();
                             it = this->_clients.erase(it);
-                            this->_mtxServer.unlock();
+                            //this->_mtxServer.unlock();
                         }
 
                         rc--;
@@ -122,14 +121,14 @@ int Server::run()
                     {
                         if ( outputVerbose ) winux::ColorOutput(winux::fgMaroon, it->second->getStamp(), "出错并移除");
 
-                        this->_mtxServer.lock();
+                        //this->_mtxServer.lock();
                         it = this->_clients.erase(it);
-                        this->_mtxServer.unlock();
+                        //this->_mtxServer.unlock();
 
                         rc--;
                     }
 
-                    this->_mtxServer.lock();
+                    //this->_mtxServer.lock();
 
                     if ( rc == 0 ) break;
 
@@ -137,7 +136,7 @@ int Server::run()
                     if ( it != this->_clients.end() ) ++it;
                 }
 
-                this->_mtxServer.unlock();
+                //this->_mtxServer.unlock();
 
             }
         }
@@ -151,36 +150,32 @@ int Server::run()
     return 0;
 }
 
-
 void Server::stop(bool b /*= true */)
 {
     static_cast<volatile bool &>( _stop ) = b;
 }
 
-
 size_t Server::getClientsCount() const
 {
-    winux::ScopeGuard guard(const_cast<winux::Mutex &>( _mtxServer ));
+    //winux::ScopeGuard guard(const_cast<winux::Mutex &>( _mtxServer ));
     return _clients.size();
 }
 
-
 void Server::removeClient(winux::uint64 clientId)
 {
-    winux::ScopeGuard guard(_mtxServer);
+    //winux::ScopeGuard guard(_mtxServer);
     _clients.erase(clientId);
 }
-
 
 winux::SharedPointer<v2::ClientCtx> & Server::_addClient(ip::EndPoint const & clientEp, winux::SharedPointer<ip::tcp::Socket> clientSockPtr)
 {
     winux::SharedPointer<ClientCtx> * client;
     {
-        winux::ScopeGuard guard(_mtxServer);
+        //winux::ScopeGuard guard(_mtxServer);
         ++_cumulativeClientId;
         client = &_clients[_cumulativeClientId];
     }
-    client->attachNew(( *_clientConstructor )( this, _cumulativeClientId, clientEp.toString(), clientSockPtr ));
+    client->attachNew(( *_clientConstructor )( _cumulativeClientId, clientEp.toString(), clientSockPtr ));
     return *client;
 }
 
