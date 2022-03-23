@@ -33,6 +33,7 @@ int Server::run()
         sel.setReadSock(_servSock);
 
         // 监视客户连接，移除标记为可移除的连接
+        if ( true )
         {
             //winux::ScopeGuard guard(this->_mtxServer);
 
@@ -53,7 +54,7 @@ int Server::run()
             }
         }
 
-        int rc = sel.wait(0.02);
+        int rc = sel.wait(0.02); // 返回就绪的套接字数
         if ( rc > 0 )
         {
             if ( outputVerbose ) winux::ColorOutput(winux::fgSilver, "Select模型获取到就绪的socks数:", rc);
@@ -90,9 +91,9 @@ int Server::run()
                 {
                     //this->_mtxServer.unlock();
 
-                    if ( sel.hasReadSock(*it->second->clientSockPtr.get()) ) // 有数据可读
+                    if ( sel.hasReadSock(*it->second->clientSockPtr.get()) ) // 该套接字有数据可读
                     {
-                        auto arrivedSize = it->second->clientSockPtr->getAvailable();
+                        int arrivedSize = it->second->clientSockPtr->getAvailable();
 
                         if ( arrivedSize > 0 )
                         {
@@ -102,10 +103,10 @@ int Server::run()
                             if ( outputVerbose ) winux::ColorOutput(winux::fgGreen, it->second->getStamp(), "收到数据:", data.getSize());
 
                             // 用线程池去处理
-                            this->_pool.task(&Server::onClientDataArrived, this, it->second, std::move(data)).post();
+                            this->_pool.task( &Server::onClientDataArrived, this, it->second, std::move(data) ).post();
 
                         }
-                        else
+                        else // arrivedSize <= 0
                         {
                             if ( outputVerbose ) winux::ColorOutput(winux::fgRed, it->second->getStamp(), "有数据到达(bytes:", arrivedSize, ")，对方了可能关闭了连接");
                             if ( outputVerbose ) winux::ColorOutput(winux::fgMaroon, it->second->getStamp(), "关闭并移除");
@@ -117,7 +118,7 @@ int Server::run()
 
                         rc--;
                     }
-                    else if ( sel.hasExceptSock(*it->second->clientSockPtr.get()) ) // 有错误
+                    else if ( sel.hasExceptSock(*it->second->clientSockPtr.get()) ) // 该套接字有错误
                     {
                         if ( outputVerbose ) winux::ColorOutput(winux::fgMaroon, it->second->getStamp(), "出错并移除");
 
@@ -130,6 +131,7 @@ int Server::run()
 
                     //this->_mtxServer.lock();
 
+                    // 已经没有就绪的套接字，跳出
                     if ( rc == 0 ) break;
 
                     // 如果已经是end则不能再++it
@@ -150,7 +152,7 @@ int Server::run()
     return 0;
 }
 
-void Server::stop(bool b /*= true */)
+void Server::stop( bool b )
 {
     static_cast<volatile bool &>( _stop ) = b;
 }
@@ -161,13 +163,13 @@ size_t Server::getClientsCount() const
     return _clients.size();
 }
 
-void Server::removeClient(winux::uint64 clientId)
+void Server::removeClient( winux::uint64 clientId )
 {
     //winux::ScopeGuard guard(_mtxServer);
     _clients.erase(clientId);
 }
 
-winux::SharedPointer<v2::ClientCtx> & Server::_addClient(ip::EndPoint const & clientEp, winux::SharedPointer<ip::tcp::Socket> clientSockPtr)
+winux::SharedPointer<v2::ClientCtx> & Server::_addClient( ip::EndPoint const & clientEp, winux::SharedPointer<ip::tcp::Socket> clientSockPtr )
 {
     winux::SharedPointer<ClientCtx> * client;
     {
@@ -175,7 +177,7 @@ winux::SharedPointer<v2::ClientCtx> & Server::_addClient(ip::EndPoint const & cl
         ++_cumulativeClientId;
         client = &_clients[_cumulativeClientId];
     }
-    client->attachNew(( *_clientConstructor )( _cumulativeClientId, clientEp.toString(), clientSockPtr ));
+    client->attachNew( (*_clientConstructor)( _cumulativeClientId, clientEp.toString(), clientSockPtr ) );
     return *client;
 }
 

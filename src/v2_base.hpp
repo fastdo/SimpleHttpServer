@@ -2,11 +2,12 @@
 
 #include <winux.hpp>
 #include <eiennet.hpp>
+#include <eienwebx.hpp>
 
 namespace v2
 {
 using namespace eiennet;
-
+using namespace eienwebx;
 
 #define _DEFINE_EVENT_RELATED(evtname, paramtypes, calledparams) \
 public: \

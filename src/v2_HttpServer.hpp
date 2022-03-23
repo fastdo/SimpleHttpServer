@@ -5,18 +5,11 @@ namespace v2
 /** HTTP服务器 */
 class HttpServer : public Server
 {
-    // 收到一个请求头，应该分析是否需要继续收额外的头或者消息体
-    _DEFINE_EVENT_RELATED_EX(
-        ClientRequestHeader,
-        ( winux::SharedPointer<HttpClientCtx> clientCtxPtr, http::Header const & header )
-    );
-
     // 一个完整请求到来
-    _DEFINE_EVENT_RELATED(
+    _DEFINE_EVENT_RELATED_EX(
         ClientRequest,
-        (),
-        ()
-    )
+        ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header * header, winux::Buffer * body )
+    );
 
 public:
 
