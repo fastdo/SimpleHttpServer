@@ -40,8 +40,8 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
             int & startpos = httpClientCtxPtr->forClient.startpos;
             // 搜索到标记的位置
             int & pos = httpClientCtxPtr->forClient.pos;
-            // 如果可搜索的数据小于标记长度 或者 搜不到标记 则 退出
-            if ( data.getSize() - startpos < target.size() || ( pos = winux::_Templ_KmpMatchEx(data.getBuf<char>(), (int)data.getSize(), target.c_str(), (int)target.size(), startpos, targetNextVal) ) == -1 )
+            // 如果接收到的数据小于标记长度 或者 搜不到标记 则退出
+            if ( data.getSize() - startpos < target.size() || ( pos = winux::_Templ_KmpMatchEx( data.getBuf<char>(), (int)data.getSize(), target.c_str(), (int)target.size(), startpos, targetNextVal ) ) == -1 )
             {
                 if ( data.getSize() >= target.size() ) startpos = static_cast<int>( data.getSize() - target.size() + 1 ); // 计算下次搜索起始
 
@@ -71,12 +71,12 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                 // 判断是否接收请求体
                 if ( httpClientCtxPtr->requestContentLength > 0 )
                 {
-                    winux::ColorOutput( winux::fgGreen, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
+                    if ( outputVerbose ) winux::ColorOutput( winux::fgGreen, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
                     if ( data.getSize() == httpClientCtxPtr->requestContentLength ) // 收到的数据等于请求体数据的大小
                     {
-                        httpClientCtxPtr->body.setBuf( data.getBuf<char>(), data.getSize(), false );
-                        // 调用收到Request事件
-                        this->_pool.task( &HttpServer::onClientRequest, this, httpClientCtxPtr, &httpClientCtxPtr->header, &httpClientCtxPtr->body ).post();
+                        winux::AnsiString body( data.getBuf<char>(), data.getSize() );
+                        // 可以用线程池去处理调用onClientRequest事件
+                        this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::move(httpClientCtxPtr->header), std::move(body) ).post();
                         // 清空数据
                         data.free();
 
@@ -90,9 +90,9 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                 } 
                 else // 没有请求体
                 {
-                    httpClientCtxPtr->body.free();
-                    // 调用收到Request事件
-                    this->_pool.task( &HttpServer::onClientRequest, this, httpClientCtxPtr, &httpClientCtxPtr->header, &httpClientCtxPtr->body ).post();
+                    winux::AnsiString body;
+                    // 可以用线程池去处理调用onClientRequest事件
+                    this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::move(httpClientCtxPtr->header), std::move(body) ).post();
 
                     // 等待处理请求，设置接收类型为None
                     httpClientCtxPtr->curRecvType = HttpClientCtx::drtNone;
@@ -102,12 +102,12 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
         break;
     case HttpClientCtx::drtRequestBody:
         {
-            winux::ColorOutput( winux::fgAqua, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
+            if ( outputVerbose ) winux::ColorOutput( winux::fgAqua, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
             if ( data.getSize() == httpClientCtxPtr->requestContentLength ) // 收到的数据等于请求体数据的大小
             {
-                httpClientCtxPtr->body.setBuf( data.getBuf<char>(), data.getSize(), false );
-                // 调用收到Request事件
-                this->_pool.task( &HttpServer::onClientRequest, this, httpClientCtxPtr, &httpClientCtxPtr->header, &httpClientCtxPtr->body ).post();
+                winux::AnsiString body( data.getBuf<char>(), data.getSize() );
+                // 可以用线程池去处理调用onClientRequest事件
+                this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::move(httpClientCtxPtr->header), std::move(body) ).post();
                 // 清空数据
                 data.free();
 
@@ -126,15 +126,16 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
 }
 
 // 收到一个请求
-void HttpServer::onClientRequest( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header * header, winux::Buffer * body )
+void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body )
 {
     // 应该处理GET/POST/COOKIES
 
 
-    if ( this->_ClientRequestHandler ) this->_ClientRequestHandler( httpClientCtxPtr, header, body );
+    // 调用事件处理函数
+    this->onClientRequest( httpClientCtxPtr, header, body );
 
     // 检测Connection是否保活
-    if ( winux::StrLower((*header)["Connection"]) != "keep-alive" ) // 连接不保活
+    if ( winux::StrLower(header["Connection"]) != "keep-alive" ) // 连接不保活
     {
         httpClientCtxPtr->canRemove = true; // 标记为可移除
     }

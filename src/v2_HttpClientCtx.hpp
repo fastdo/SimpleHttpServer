@@ -28,12 +28,14 @@ public:
         drtRequestHeader,
         drtRequestBody,
     };
-    DataRecvType curRecvType; // 当前要接收的类型
+
     DataRecvSendCtx forClient; // 接收数据的一些中间变量
     http::Header header; // 请求头
+    //winux::AnsiString body; // 请求体
+
+    DataRecvType curRecvType; // 当前要接收的类型
     bool hasHeader; // 标记是否读取到了请求头，这个用来避免请求体数据包含有\r\n从而导致请求头错误
     winux::ulong requestContentLength;
-    winux::Buffer body; // 请求体
 };
 
 }

@@ -6,7 +6,7 @@
 namespace v2
 {
 
-Server::Server(ip::EndPoint const & ep, int threadCount /*= 4*/, int backlog /*= 0*/, ClientCtxConstructor clientConstructor /*= ClientCtx::NewInstance */) :
+Server::Server( ip::EndPoint const & ep, int threadCount, int backlog, ClientCtxConstructor clientConstructor ) :
     _cumulativeClientId(0),
     _stop(false),
     _pool(threadCount),
@@ -102,8 +102,9 @@ int Server::run()
                             winux::Buffer data = it->second->clientSockPtr->recv(arrivedSize);
                             if ( outputVerbose ) winux::ColorOutput(winux::fgGreen, it->second->getStamp(), "收到数据:", data.getSize());
 
-                            // 用线程池去处理
-                            this->_pool.task( &Server::onClientDataArrived, this, it->second, std::move(data) ).post();
+                            // 不能用线程池去处理，要直接调用。因为要保证数据接收先后顺序
+                            //this->_pool.task( &Server::onClientDataArrived, this, it->second, std::move(data) ).post();
+                            this->onClientDataArrived( it->second, std::move(data) );
 
                         }
                         else // arrivedSize <= 0

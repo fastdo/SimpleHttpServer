@@ -6,10 +6,11 @@ namespace v2
 class HttpServer : public Server
 {
     // 一个完整请求到来
-    _DEFINE_EVENT_RELATED_EX(
+    _DEFINE_EVENT_RELATED(
         ClientRequest,
-        ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header * header, winux::Buffer * body )
-    );
+        ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body ),
+        ( httpClientCtxPtr, header, body )
+    )
 
 public:
 
@@ -27,6 +28,8 @@ public:
 
 protected:
     virtual void onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxPtr, winux::Buffer data0 ) override;
+private:
+    void onClientRequestInternal( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body );
 };
 
 }

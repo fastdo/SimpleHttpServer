@@ -4,6 +4,8 @@
 #include "v2_HttpClientCtx.hpp"
 #include "v2_HttpServer.hpp"
 
+#include "v2_HttpApp.hpp"
+
 namespace v2
 {
 using namespace winux;
@@ -14,14 +16,14 @@ int startup()
     SocketLib initSock;
     HttpServer server( ip::EndPoint("127.0.0.1:18080") );
 
-    server.onClientRequestHandler( [] ( SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header * header, Buffer * body ) {
-        auto str = header->toString();
+    server.onClientRequestHandler( [] ( SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, AnsiString & body ) {
+        auto str = header.toString();
         if ( v2::outputVerbose )
         {
-            ColorOutput( fgYellow, str, body->getSize() /*Base64Encode(body)*/ );
+            ColorOutput( fgYellow, str, body.size() /*Base64Encode(body)*/ );
         }
 
-        if ( header->getUrl() == "/favicon.ico" )
+        if ( header.getUrl() == "/favicon.ico" )
         {
             /*clientCtxPtr->clientSockPtr->send(
                 "HTTP/1.1 401 Unauthorized\r\n"
@@ -40,11 +42,11 @@ int startup()
         }
         else
         {
-            std::cout
-                << httpClientCtxPtr->body.getSize() << std::endl
+            /*std::cout
+                << httpClientCtxPtr->body.capacity() << std::endl
                 << httpClientCtxPtr->forClient.data.getCapacity() << std::endl
                 << httpClientCtxPtr->forClient.extraData.getCapacity() << std::endl
-                ;
+                ;*/
 
             httpClientCtxPtr->clientSockPtr->send(
                 "HTTP/1.1 200 OK\r\n"
@@ -66,11 +68,9 @@ int main()
 {
     using namespace winux;
     using namespace std;
-    string s = "hi";
-    auto f = MakeSimple( NewRunable( [] ( string & str ) { str+= "1";cout << str<<endl; }, ref(s) ) );
-    f->invoke();
 
-    cout << s << endl;
+    Configure cfg("server_v0.conf");
+    v2::HttpApp app(cfg);
 
     return v2::startup();
 }
