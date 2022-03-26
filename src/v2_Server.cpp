@@ -6,15 +6,26 @@
 namespace v2
 {
 
-Server::Server( ip::EndPoint const & ep, int threadCount, int backlog, ClientCtxConstructor clientConstructor ) :
+Server::Server( eiennet::ip::EndPoint const & ep, int threadCount, int backlog ) :
     _cumulativeClientId(0),
     _stop(false),
-    _pool(threadCount),
+    _pool(threadCount)
     //_mtxServer(true),
-    _clientConstructor(clientConstructor)
 {
     _servSock.setReUseAddr(true);
     _stop = !( _servSock.eiennet::Socket::bind(ep) && _servSock.listen(backlog) );
+
+    if ( outputVerbose )
+    {
+        if ( _stop )
+        {
+            winux::ColorOutput( winux::fgRed, "启动服务器失败, ep=", ep.toString(), ", threads=", threadCount, ", backlog=", backlog );
+        }
+        else
+        {
+            winux::ColorOutput( winux::fgGreen, "启动服务器成功, ep=", ep.toString(), ", threads=", threadCount, ", backlog=", backlog );
+        }
+    }
 }
 
 Server::~Server()
@@ -27,7 +38,7 @@ int Server::run()
     int counter = 0;
     while ( !_stop )
     {
-        io::Select sel;
+        eiennet::io::Select sel;
         // 监视服务器sock
         sel.setExceptSock(_servSock);
         sel.setReadSock(_servSock);
@@ -62,12 +73,12 @@ int Server::run()
             // 处理服务器sock事件
             if ( sel.hasReadSock(_servSock) )
             {
-                ip::EndPoint clientEp;
+                eiennet::ip::EndPoint clientEp;
                 auto clientSockPtr = _servSock.accept(&clientEp);
 
                 if ( clientSockPtr )
                 {
-                    auto & clientCtxPtr = this->_addClient(clientEp, clientSockPtr);
+                    auto & clientCtxPtr = this->_addClient( clientEp, clientSockPtr );
 
                     if ( outputVerbose ) winux::ColorOutput(winux::fgFuchsia, clientCtxPtr->getStamp(), "新加入服务器");
                 }
@@ -170,7 +181,7 @@ void Server::removeClient( winux::uint64 clientId )
     _clients.erase(clientId);
 }
 
-winux::SharedPointer<v2::ClientCtx> & Server::_addClient( ip::EndPoint const & clientEp, winux::SharedPointer<ip::tcp::Socket> clientSockPtr )
+winux::SharedPointer<v2::ClientCtx> & Server::_addClient( eiennet::ip::EndPoint const & clientEp, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
 {
     winux::SharedPointer<ClientCtx> * client;
     {
@@ -178,8 +189,20 @@ winux::SharedPointer<v2::ClientCtx> & Server::_addClient( ip::EndPoint const & c
         ++_cumulativeClientId;
         client = &_clients[_cumulativeClientId];
     }
-    client->attachNew( (*_clientConstructor)( _cumulativeClientId, clientEp.toString(), clientSockPtr ) );
+    client->attachNew( this->onCreateClient( _cumulativeClientId, clientEp.toString(), clientSockPtr ) );
     return *client;
+}
+
+v2::ClientCtx * Server::onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
+{
+    if ( this->_CreateClientHandler )
+    {
+        return this->_CreateClientHandler( clientId, clientEpStr, clientSockPtr );
+    }
+    else
+    {
+        return new v2::ClientCtx( clientId, clientEpStr, clientSockPtr );
+    }
 }
 
 }

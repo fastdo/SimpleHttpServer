@@ -9,23 +9,16 @@ class Server;
 class ClientCtx
 {
 public:
-    DEFINE_FUNC_NEWINSTANCE(
-        ClientCtx,
-        ClientCtx,
-        ( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr ),
-        ( clientId, clientEpStr, clientSockPtr )
-    )
-
-    ClientCtx( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr );
+    ClientCtx( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr );
 
     virtual ~ClientCtx();
 
     winux::String getStamp() const;
 
-    winux::uint64 clientId;
-    winux::String clientEpStr;
-    winux::SharedPointer<ip::tcp::Socket> clientSockPtr;
-    bool canRemove;
+    winux::uint64 clientId; ///< 客户Id
+    winux::String clientEpStr; ///< 客户终端字符串
+    winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr; ///< 客户套接字
+    bool canRemove; ///< 是否标记为可以移除
 
 private:
     DISABLE_OBJECT_COPY(ClientCtx)

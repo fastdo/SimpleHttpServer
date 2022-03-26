@@ -2,18 +2,20 @@
 #include "v2_base.hpp"
 #include "v2_ClientCtx.hpp"
 #include "v2_Server.hpp"
-#include "v2_HttpClientCtx.hpp"
 #include "v2_HttpServer.hpp"
+#include "v2_HttpApp.hpp"
+#include "v2_HttpRequest.hpp"
+#include "v2_HttpClientCtx.hpp"
+#include "v2_HttpOutputMgr.hpp"
 
 namespace v2
 {
 
 HttpServer::HttpServer(
-    ip::EndPoint const & ep,
+    eiennet::ip::EndPoint const & ep,
     int threadCount /*= 4*/,
-    int backlog /*= 0*/,
-    ClientCtxConstructor clientConstructor /*= HttpClientCtx::NewInstance */
-) : Server( ep, threadCount, backlog, clientConstructor )
+    int backlog /*= 0*/
+) : Server( ep, threadCount, backlog )
 {
 
 }
@@ -58,15 +60,15 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                 data._setSize( (winux::uint)searchedDataSize );
 
                 // 解析头部
-                httpClientCtxPtr->header.clear();
-                httpClientCtxPtr->header.parse( data.toAnsi() );
+                httpClientCtxPtr->request.header.clear();
+                httpClientCtxPtr->request.header.parse( data.toAnsi() );
 
                 // 额外的数据移入主数据中
                 httpClientCtxPtr->forClient.data = std::move(httpClientCtxPtr->forClient.extraData);
                 httpClientCtxPtr->forClient.resetStatus(); // 重置数据收发场景
 
                 // 请求体大小
-                httpClientCtxPtr->requestContentLength = httpClientCtxPtr->header.getHeader<winux::ulong>( "Content-Length", 0 );
+                httpClientCtxPtr->requestContentLength = httpClientCtxPtr->request.header.getHeader<winux::ulong>( "Content-Length", 0 );
 
                 // 判断是否接收请求体
                 if ( httpClientCtxPtr->requestContentLength > 0 )
@@ -76,7 +78,7 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                     {
                         winux::AnsiString body( data.getBuf<char>(), data.getSize() );
                         // 可以用线程池去处理调用onClientRequest事件
-                        this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::move(httpClientCtxPtr->header), std::move(body) ).post();
+                        this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::move(body) ).post();
                         // 清空数据
                         data.free();
 
@@ -92,7 +94,7 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                 {
                     winux::AnsiString body;
                     // 可以用线程池去处理调用onClientRequest事件
-                    this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::move(httpClientCtxPtr->header), std::move(body) ).post();
+                    this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::move(body) ).post();
 
                     // 等待处理请求，设置接收类型为None
                     httpClientCtxPtr->curRecvType = HttpClientCtx::drtNone;
@@ -107,7 +109,7 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
             {
                 winux::AnsiString body( data.getBuf<char>(), data.getSize() );
                 // 可以用线程池去处理调用onClientRequest事件
-                this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::move(httpClientCtxPtr->header), std::move(body) ).post();
+                this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::move(body) ).post();
                 // 清空数据
                 data.free();
 
@@ -131,8 +133,13 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     // 应该处理GET/POST/COOKIES
 
 
-    // 调用事件处理函数
-    this->onClientRequest( httpClientCtxPtr, header, body );
+    if ( true )
+    {
+        // 创建响应
+        eienwebx::Response rsp{ httpClientCtxPtr->request, winux::MakeSimple( new HttpOutputMgr( httpClientCtxPtr->clientSockPtr.get() ) ) };
+        // 调用WebMain处理函数
+        this->onWebMain( httpClientCtxPtr, &rsp, rsp.request.app->getRunParam() );
+    }
 
     // 检测Connection是否保活
     if ( winux::StrLower(header["Connection"]) != "keep-alive" ) // 连接不保活

@@ -16,15 +16,21 @@ class Server
         ( clientCtxPtr, std::move(data) )
     )
 
+    // 当创建客户连接对象
+    _DEFINE_EVENT_RETURN_RELATED_EX(
+        v2::ClientCtx *,
+        CreateClient,( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
+    );
+
 public:
-    using ClientCtxConstructor = ClientCtx * (*)( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr );
+    //using ClientCtxConstructor = ClientCtx * (*)( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr );
 
     /** \brief 构造函数1
      *
      *  \param ep 服务监听的EndPoint
      *  \param threadCount 线程池线程数量
      *  \param backlog listen(backlog) */
-    Server( ip::EndPoint const & ep, int threadCount = 4, int backlog = 0, ClientCtxConstructor clientConstructor = ClientCtx::NewInstance );
+    Server( eiennet::ip::EndPoint const & ep, int threadCount = 4, int backlog = 0/*, ClientCtxConstructor clientConstructor = ClientCtx::NewInstance*/ );
 
     virtual ~Server();
 
@@ -38,15 +44,15 @@ public:
     void removeClient( winux::uint64 clientId );
 
 protected:
-    winux::SharedPointer<ClientCtx> & _addClient( ip::EndPoint const & clientEp, winux::SharedPointer<ip::tcp::Socket> clientSockPtr );
+    winux::SharedPointer<v2::ClientCtx> & _addClient( eiennet::ip::EndPoint const & clientEp, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr );
 
     winux::uint64 _cumulativeClientId; // 客户唯一标识
     bool _stop; // 是否停止
     winux::ThreadPool _pool; // 线程池
     //winux::Mutex _mtxServer; // 互斥量保护服务器共享数据
-    ip::tcp::Socket _servSock; // 服务器监听套接字
-    std::map< winux::uint64, winux::SharedPointer<ClientCtx> > _clients; // 客户表
-    ClientCtxConstructor _clientConstructor; // 客户场景构造器
+    eiennet::ip::tcp::Socket _servSock; // 服务器监听套接字
+    std::map< winux::uint64, winux::SharedPointer<v2::ClientCtx> > _clients; // 客户表
+    //ClientCtxConstructor _clientConstructor; // 客户场景构造器
 
 private:
     DISABLE_OBJECT_COPY(Server)

@@ -6,8 +6,6 @@
 
 namespace v2
 {
-using namespace eiennet;
-using namespace eienwebx;
 
 #define _DEFINE_EVENT_RELATED(evtname, paramtypes, calledparams) \
 public: \
@@ -33,6 +31,17 @@ public: \
 protected: \
     evtname##HandlerFunction _##evtname##Handler; \
     virtual void on##evtname##paramtypes
+
+#define _DEFINE_EVENT_RETURN_RELATED_EX(ret, evtname, paramtypes) \
+public: \
+    using evtname##HandlerFunction = std::function< ret paramtypes >; \
+    void on##evtname##Handler( evtname##HandlerFunction handler ) \
+    { \
+        this->_##evtname##Handler = handler; \
+    } \
+protected: \
+    evtname##HandlerFunction _##evtname##Handler; \
+    virtual ret on##evtname##paramtypes
 
 
 // 是否输出提示

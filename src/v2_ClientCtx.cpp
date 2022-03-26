@@ -5,7 +5,7 @@
 namespace v2
 {
 
-ClientCtx::ClientCtx( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<ip::tcp::Socket> clientSockPtr ) :
+ClientCtx::ClientCtx( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr ) :
     clientId(clientId),
     clientEpStr(clientEpStr),
     clientSockPtr(clientSockPtr),
