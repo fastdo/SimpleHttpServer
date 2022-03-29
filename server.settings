@@ -13,7 +13,7 @@ MaxUrlencodedPostSize 8388608;
 MaxMultiFormPostSize 10485760;
 
 # 上传的临时目录
-UploadTmpPath ($ExeDirPath + '/temp');
+UploadTmpPath ($ExeDirPath + '/upload-tmp');
 
 # fcgiplus库输出信息用的模板路径
 OutputTplPath ($ExeDirPath + '/output-tpl');
@@ -21,17 +21,24 @@ OutputTplPath ($ExeDirPath + '/output-tpl');
 server {
     # 服务器名，可留空
     server_name localhost;
+    # 服务器IP，可留空
+    server_ip 127.0.0.1;
     # 服务器监听端口
     server_port 18080;
-
     # 监听积压数
     listen_backlog 10;
     # 线程数
     thread_count 6;
-    # 连接无收发重试次数
-    retry_count 100;
+    # 服务器IO等待间隔时间(小数秒)
+    server_wait 0.02;
+    # verbose信息刷新间隔(小数秒)
+    verbose_interval 1.0;
     # 显示冗长信息
-    verbose 0;
+    verbose 1;
+    # 连接重试次数
+    retry_count 10;
+    # 套接字超时时间(整数秒)
+    sock_timeout 300;
 }
 
 site {

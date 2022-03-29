@@ -11,6 +11,11 @@ namespace eienwebx
 namespace v2
 {
 
+HttpOutputMgr::HttpOutputMgr( eiennet::Socket * clientSock ) : OutputMgr(), _clientSock(clientSock)
+{
+
+}
+
 void HttpOutputMgr::commit()
 {
     if ( !_self->_headerCommited )

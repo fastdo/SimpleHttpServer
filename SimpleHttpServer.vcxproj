@@ -168,6 +168,7 @@
     <ClCompile Include="src\v2_ClientCtx.cpp" />
     <ClCompile Include="src\v2_HttpApp.cpp" />
     <ClCompile Include="src\v2_HttpClientCtx.cpp" />
+    <ClCompile Include="src\v2_HttpServerConfig.cpp" />
     <ClCompile Include="src\v2_HttpOutputMgr.cpp" />
     <ClCompile Include="src\v2_HttpRequest.cpp" />
     <ClCompile Include="src\v2_HttpServer.cpp" />
@@ -178,10 +179,14 @@
     <ClInclude Include="src\v2_ClientCtx.hpp" />
     <ClInclude Include="src\v2_HttpApp.hpp" />
     <ClInclude Include="src\v2_HttpClientCtx.hpp" />
+    <ClInclude Include="src\v2_HttpServerConfig.hpp" />
     <ClInclude Include="src\v2_HttpOutputMgr.hpp" />
     <ClInclude Include="src\v2_HttpRequest.hpp" />
     <ClInclude Include="src\v2_HttpServer.hpp" />
     <ClInclude Include="src\v2_Server.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="server.settings" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

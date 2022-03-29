@@ -1,14 +1,15 @@
 #pragma once
 
+
+
 namespace v2
 {
+class HttpApp;
 
 class HttpRequest : public eienwebx::Request
 {
 public:
-    HttpRequest( v2::HttpApp * app ) : Request(app)
-    {
-    }
+    HttpRequest( HttpApp * app );
 
     bool processData() override;
 };

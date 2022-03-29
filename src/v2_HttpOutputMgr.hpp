@@ -6,9 +6,7 @@ namespace v2
 class HttpOutputMgr : public eienwebx::OutputMgr
 {
 public:
-    HttpOutputMgr( eiennet::Socket * clientSock ) : OutputMgr(), _clientSock(clientSock)
-    {
-    }
+    HttpOutputMgr( eiennet::Socket * clientSock );
 
     void commit() override;
 protected:

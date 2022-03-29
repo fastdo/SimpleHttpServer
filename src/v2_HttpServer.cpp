@@ -2,6 +2,7 @@
 #include "v2_base.hpp"
 #include "v2_ClientCtx.hpp"
 #include "v2_Server.hpp"
+#include "v2_HttpServerConfig.hpp"
 #include "v2_HttpServer.hpp"
 #include "v2_HttpApp.hpp"
 #include "v2_HttpRequest.hpp"
@@ -11,11 +12,26 @@
 namespace v2
 {
 
+HttpServer::HttpServer( HttpApp * app, HttpServerConfig const & httpConfig ) :
+    Server(),
+    config(httpConfig),
+    _app(app)
+{
+
+}
+
 HttpServer::HttpServer(
+    HttpApp * app,
     eiennet::ip::EndPoint const & ep,
-    int threadCount /*= 4*/,
-    int backlog /*= 0*/
-) : Server( ep, threadCount, backlog )
+    int threadCount,
+    int backlog,
+    double serverWait,
+    double verboseInterval,
+    bool verbose
+) :
+    Server( ep, threadCount, backlog, serverWait, verboseInterval, verbose ),
+    config(app->settings),
+    _app(app)
 {
 
 }
@@ -73,7 +89,7 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                 // 判断是否接收请求体
                 if ( httpClientCtxPtr->requestContentLength > 0 )
                 {
-                    if ( outputVerbose ) winux::ColorOutput( winux::fgGreen, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
+                    if ( this->_verbose ) winux::ColorOutputLine( winux::fgGreen, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
                     if ( data.getSize() == httpClientCtxPtr->requestContentLength ) // 收到的数据等于请求体数据的大小
                     {
                         winux::AnsiString body( data.getBuf<char>(), data.getSize() );
@@ -104,7 +120,7 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
         break;
     case HttpClientCtx::drtRequestBody:
         {
-            if ( outputVerbose ) winux::ColorOutput( winux::fgAqua, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
+            if ( this->_verbose ) winux::ColorOutputLine( winux::fgAqua, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
             if ( data.getSize() == httpClientCtxPtr->requestContentLength ) // 收到的数据等于请求体数据的大小
             {
                 winux::AnsiString body( data.getBuf<char>(), data.getSize() );
@@ -127,16 +143,54 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
     }
 }
 
+ ClientCtx * HttpServer::onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
+ {
+     return new HttpClientCtx( _app, clientId, clientEpStr, clientSockPtr );
+ }
+
 // 收到一个请求
 void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body )
 {
-    // 应该处理GET/POST/COOKIES
+    if ( this->_verbose )
+    {
+        auto hdrStr = header.toString();
+        winux::ColorOutputLine( winux::fgYellow, hdrStr, body.size() /*Base64Encode(body)*/ );
+    }
 
+    // 解析URL信息
+    http::Url & url = httpClientCtxPtr->url;
+    url.clear();
+    url.parse( header.getUrl() );
+
+    // 应该处理GET/POST/COOKIES/ENVIRON
+    HttpRequest & request = httpClientCtxPtr->request;
+    // 清空原先数据
+    request.environVars.clear();
+    request.cookies.clear();
+    request.get.clear();
+    request.post.clear();
+
+    // 解析cookies
+    request.cookies.loadCookies( header.getHeader("Cookie") );
+    // 解析querystring
+    request.get.parse( url.getRawQueryStr() );
+
+    if ( header.getMethod() == "POST" )
+    {
+        http::Header::ContentType ct;
+        if ( header.get( "Content-Type", &ct ) )
+        {
+            if ( ct.getMimeType() == "application/x-www-form-urlencoded" )
+            {
+                request.post.parse(body);
+            }
+        }
+    }
 
     if ( true )
     {
         // 创建响应
-        eienwebx::Response rsp{ httpClientCtxPtr->request, winux::MakeSimple( new HttpOutputMgr( httpClientCtxPtr->clientSockPtr.get() ) ) };
+        eienwebx::Response rsp{ request, winux::MakeSimple( new HttpOutputMgr( httpClientCtxPtr->clientSockPtr.get() ) ) };
         // 调用WebMain处理函数
         this->onWebMain( httpClientCtxPtr, &rsp, rsp.request.app->getRunParam() );
     }

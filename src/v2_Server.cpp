@@ -6,31 +6,76 @@
 namespace v2
 {
 
-Server::Server( eiennet::ip::EndPoint const & ep, int threadCount, int backlog ) :
+Server::Server() :
+    //_mtxServer(true),
     _cumulativeClientId(0),
     _stop(false),
-    _pool(threadCount)
-    //_mtxServer(true),
+    _serverWait(0.02),
+    _verboseInterval(1.0),
+    _verbose(true)
 {
-    _servSock.setReUseAddr(true);
-    _stop = !( _servSock.eiennet::Socket::bind(ep) && _servSock.listen(backlog) );
 
-    if ( outputVerbose )
-    {
-        if ( _stop )
-        {
-            winux::ColorOutput( winux::fgRed, "启动服务器失败, ep=", ep.toString(), ", threads=", threadCount, ", backlog=", backlog );
-        }
-        else
-        {
-            winux::ColorOutput( winux::fgGreen, "启动服务器成功, ep=", ep.toString(), ", threads=", threadCount, ", backlog=", backlog );
-        }
-    }
+}
+
+Server::Server( eiennet::ip::EndPoint const & ep, int threadCount, int backlog, double serverWait, double verboseInterval, bool verbose ) :
+    //_mtxServer(true),
+    _cumulativeClientId(0),
+    _stop(false),
+    _serverWait(0.02),
+    _verboseInterval(1.0),
+    _verbose(true)
+{
+    this->startup( ep, threadCount, backlog, serverWait, verboseInterval, verbose );
 }
 
 Server::~Server()
 {
 
+}
+
+bool Server::startup( eiennet::ip::EndPoint const & ep, int threadCount, int backlog, double serverWait, double verboseInterval, bool verbose )
+{
+    _pool.startup(threadCount);
+    _servSock.setReUseAddr(true);
+    _stop = !( _servSock.eiennet::Socket::bind(ep) && _servSock.listen(backlog) );
+
+    _serverWait = serverWait;
+    _verboseInterval = verboseInterval;
+    _verbose = verbose;
+
+    if ( this->_verbose )
+    {
+        if ( _stop )
+        {
+            winux::ColorOutputLine(
+                winux::fgRed,
+                "启动服务器失败",
+                ", ep=", ep.toString(),
+                ", threads=", threadCount,
+                ", backlog=", backlog,
+                ", serverWait=", serverWait,
+                ", verboseInterval=", verboseInterval,
+                ", verbose=", verbose,
+                ""
+            );
+        }
+        else
+        {
+            winux::ColorOutputLine(
+                winux::fgGreen,
+                "启动服务器成功",
+                ", ep=", ep.toString(),
+                ", threads=", threadCount,
+                ", backlog=", backlog,
+                ", serverWait=", serverWait,
+                ", verboseInterval=", verboseInterval,
+                ", verbose=", verbose,
+                ""
+            );
+        }
+    }
+
+    return !_stop;
 }
 
 int Server::run()
@@ -43,13 +88,25 @@ int Server::run()
         sel.setExceptSock(_servSock);
         sel.setReadSock(_servSock);
 
-        // 监视客户连接，移除标记为可移除的连接
         if ( true )
         {
             //winux::ScopeGuard guard(this->_mtxServer);
+            // 输出一些服务器状态信息
+            if ( ++counter % static_cast<int>( this->_verboseInterval / this->_serverWait ) == 0 && this->_verbose )
+            {
+                winux::DateTimeL dtl;
+                winux::ColorOutput(
+                    winux::fgWhite,
+                    dtl.fromCurrent(),
+                    ", 总客户数:", this->_clients.size(),
+                    ", 当前任务数:",
+                    this->_pool.getTaskCount(),
+                    std::string(20, ' '),
+                    "\r"
+                );
+            }
 
-            if ( ++counter % 50 == 0 && outputVerbose ) winux::ColorOutput(winux::fgWhite, "总客户:", this->_clients.size(), ", 当前任务数:", this->_pool.getTaskCount());
-
+            // 监视客户连接，移除标记为可移除的连接
             for ( auto it = this->_clients.begin(); it != this->_clients.end(); )
             {
                 if ( it->second->canRemove )
@@ -65,14 +122,15 @@ int Server::run()
             }
         }
 
-        int rc = sel.wait(0.02); // 返回就绪的套接字数
+        int rc = sel.wait(this->_serverWait); // 返回就绪的套接字数
         if ( rc > 0 )
         {
-            if ( outputVerbose ) winux::ColorOutput(winux::fgSilver, "Select模型获取到就绪的socks数:", rc);
+            if ( this->_verbose ) winux::ColorOutputLine(winux::fgSilver, "Select模型获取到就绪的socks数:", rc);
 
             // 处理服务器sock事件
             if ( sel.hasReadSock(_servSock) )
             {
+                // 有一个客户连接到来
                 eiennet::ip::EndPoint clientEp;
                 auto clientSockPtr = _servSock.accept(&clientEp);
 
@@ -80,7 +138,7 @@ int Server::run()
                 {
                     auto & clientCtxPtr = this->_addClient( clientEp, clientSockPtr );
 
-                    if ( outputVerbose ) winux::ColorOutput(winux::fgFuchsia, clientCtxPtr->getStamp(), "新加入服务器");
+                    if ( this->_verbose ) winux::ColorOutputLine(winux::fgFuchsia, clientCtxPtr->getStamp(), "新加入服务器");
                 }
 
                 rc--;
@@ -108,10 +166,10 @@ int Server::run()
 
                         if ( arrivedSize > 0 )
                         {
-                            if ( outputVerbose ) winux::ColorOutput(winux::fgWhite, it->second->getStamp(), "有数据到达(bytes:", arrivedSize, ")");
+                            if ( this->_verbose ) winux::ColorOutputLine(winux::fgWhite, it->second->getStamp(), "有数据到达(bytes:", arrivedSize, ")");
                             // 收数据
                             winux::Buffer data = it->second->clientSockPtr->recv(arrivedSize);
-                            if ( outputVerbose ) winux::ColorOutput(winux::fgGreen, it->second->getStamp(), "收到数据:", data.getSize());
+                            if ( this->_verbose ) winux::ColorOutputLine(winux::fgGreen, it->second->getStamp(), "收到数据:", data.getSize());
 
                             // 不能用线程池去处理，要直接调用。因为要保证数据接收先后顺序
                             //this->_pool.task( &Server::onClientDataArrived, this, it->second, std::move(data) ).post();
@@ -120,8 +178,8 @@ int Server::run()
                         }
                         else // arrivedSize <= 0
                         {
-                            if ( outputVerbose ) winux::ColorOutput(winux::fgRed, it->second->getStamp(), "有数据到达(bytes:", arrivedSize, ")，对方了可能关闭了连接");
-                            if ( outputVerbose ) winux::ColorOutput(winux::fgMaroon, it->second->getStamp(), "关闭并移除");
+                            if ( this->_verbose ) winux::ColorOutputLine(winux::fgRed, it->second->getStamp(), "有数据到达(bytes:", arrivedSize, ")，对方了可能关闭了连接");
+                            if ( this->_verbose ) winux::ColorOutputLine(winux::fgMaroon, it->second->getStamp(), "关闭并移除");
 
                             //this->_mtxServer.lock();
                             it = this->_clients.erase(it);
@@ -132,7 +190,7 @@ int Server::run()
                     }
                     else if ( sel.hasExceptSock(*it->second->clientSockPtr.get()) ) // 该套接字有错误
                     {
-                        if ( outputVerbose ) winux::ColorOutput(winux::fgMaroon, it->second->getStamp(), "出错并移除");
+                        if ( this->_verbose ) winux::ColorOutputLine(winux::fgMaroon, it->second->getStamp(), "出错并移除");
 
                         //this->_mtxServer.lock();
                         it = this->_clients.erase(it);
@@ -166,7 +224,7 @@ int Server::run()
 
 void Server::stop( bool b )
 {
-    static_cast<volatile bool &>( _stop ) = b;
+    static_cast<volatile bool &>(_stop) = b;
 }
 
 size_t Server::getClientsCount() const
@@ -181,7 +239,7 @@ void Server::removeClient( winux::uint64 clientId )
     _clients.erase(clientId);
 }
 
-winux::SharedPointer<v2::ClientCtx> & Server::_addClient( eiennet::ip::EndPoint const & clientEp, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
+winux::SharedPointer<ClientCtx> & Server::_addClient( eiennet::ip::EndPoint const & clientEp, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
 {
     winux::SharedPointer<ClientCtx> * client;
     {
@@ -193,7 +251,7 @@ winux::SharedPointer<v2::ClientCtx> & Server::_addClient( eiennet::ip::EndPoint 
     return *client;
 }
 
-v2::ClientCtx * Server::onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
+ClientCtx * Server::onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
 {
     if ( this->_CreateClientHandler )
     {
@@ -201,7 +259,7 @@ v2::ClientCtx * Server::onCreateClient( winux::uint64 clientId, winux::String co
     }
     else
     {
-        return new v2::ClientCtx( clientId, clientEpStr, clientSockPtr );
+        return new ClientCtx( clientId, clientEpStr, clientSockPtr );
     }
 }
 

@@ -44,7 +44,4 @@ protected: \
     virtual ret on##evtname##paramtypes
 
 
-// 是否输出提示
-extern bool outputVerbose;
-
 }
