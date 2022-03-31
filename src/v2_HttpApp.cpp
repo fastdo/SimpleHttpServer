@@ -10,7 +10,7 @@ namespace v2
 
 HttpApp::HttpApp( winux::ConfigureSettings const & settings, struct xAppServerData * servData ) :
     App( settings, servData ),
-    _server( this, HttpServerConfig(settings) )
+    _server( this, HttpServerConfig(this->settings) )
 {
     // Æô¶¯·şÎñ
     _server.startup(

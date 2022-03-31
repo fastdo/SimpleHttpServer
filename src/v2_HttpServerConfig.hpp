@@ -5,6 +5,8 @@ namespace v2
 
 struct HttpServerConfig
 {
+    winux::ConfigureSettings const & confSettings;
+
     /** \brief 服务器名，可留空 */
     winux::String serverName;
     /** \brief 服务器IP，可留空 */
@@ -33,11 +35,8 @@ struct HttpServerConfig
     /** \brief 静态文件缓存生命期 */
     int cacheLifeTime;
 
-    /** \brief  */
+    /** \brief 一些静态文件的MIME */
     std::map< winux::String, winux::String > mime; // MIME
-
-    /** \brief 构造函数0 */
-    HttpServerConfig();
 
     /** \brief 构造函数1，从配置对象加载参数 */
     HttpServerConfig( winux::ConfigureSettings const & settings );

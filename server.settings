@@ -32,7 +32,7 @@ server {
     # 服务器IO等待间隔时间(小数秒)
     server_wait 0.02;
     # verbose信息刷新间隔(小数秒)
-    verbose_interval 1.0;
+    verbose_interval 0.1;
     # 显示冗长信息
     verbose 1;
     # 连接重试次数

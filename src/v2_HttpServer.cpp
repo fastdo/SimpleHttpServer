@@ -37,13 +37,13 @@ HttpServer::HttpServer(
 }
 
 // 客户数据到达
-void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxPtr, winux::Buffer data0 )
+void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxPtr, winux::Buffer dataNew )
 {
     winux::SharedPointer<HttpClientCtx> httpClientCtxPtr = clientCtxPtr.ensureCast<HttpClientCtx>();
     winux::GrowBuffer & data = httpClientCtxPtr->forClient.data;
     winux::GrowBuffer & extraData = httpClientCtxPtr->forClient.extraData;
     // 数据到达存下
-    data.append(data0);
+    data.append(dataNew);
 
     switch ( httpClientCtxPtr->curRecvType )
     {
@@ -89,7 +89,7 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                 // 判断是否接收请求体
                 if ( httpClientCtxPtr->requestContentLength > 0 )
                 {
-                    if ( this->_verbose ) winux::ColorOutputLine( winux::fgGreen, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
+                    if ( this->_verbose ) winux::ColorOutputLine( winux::fgGreen, httpClientCtxPtr->getStamp(), data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
                     if ( data.getSize() == httpClientCtxPtr->requestContentLength ) // 收到的数据等于请求体数据的大小
                     {
                         winux::AnsiString body( data.getBuf<char>(), data.getSize() );
@@ -120,7 +120,7 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
         break;
     case HttpClientCtx::drtRequestBody:
         {
-            if ( this->_verbose ) winux::ColorOutputLine( winux::fgAqua, data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
+            if ( this->_verbose ) winux::ColorOutputLine( winux::fgGreen, httpClientCtxPtr->getStamp(), data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
             if ( data.getSize() == httpClientCtxPtr->requestContentLength ) // 收到的数据等于请求体数据的大小
             {
                 winux::AnsiString body( data.getBuf<char>(), data.getSize() );
@@ -154,13 +154,15 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     if ( this->_verbose )
     {
         auto hdrStr = header.toString();
-        winux::ColorOutputLine( winux::fgYellow, hdrStr, body.size() /*Base64Encode(body)*/ );
+        winux::ColorOutputLine( winux::fgYellow, hdrStr, "body(bytes:", body.size(), ")" /*Base64Encode(body)*/ );
     }
 
     // 解析URL信息
     http::Url & url = httpClientCtxPtr->url;
     url.clear();
     url.parse( header.getUrl() );
+
+    url.getPath();
 
     // 应该处理GET/POST/COOKIES/ENVIRON
     HttpRequest & request = httpClientCtxPtr->request;
@@ -172,21 +174,19 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
 
     // 解析cookies
     request.cookies.loadCookies( header.getHeader("Cookie") );
-    // 解析querystring
+    // 解析get querystring
     request.get.parse( url.getRawQueryStr() );
-
-    if ( header.getMethod() == "POST" )
+    // 解析POST变量
+    http::Header::ContentType ct;
+    if ( header.get( "Content-Type", &ct ) )
     {
-        http::Header::ContentType ct;
-        if ( header.get( "Content-Type", &ct ) )
+        if ( ct.getMimeType() == "application/x-www-form-urlencoded" )
         {
-            if ( ct.getMimeType() == "application/x-www-form-urlencoded" )
-            {
-                request.post.parse(body);
-            }
+            request.post.parse(body);
         }
     }
 
+    // 响应处理
     if ( true )
     {
         // 创建响应
@@ -200,6 +200,8 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     {
         httpClientCtxPtr->canRemove = true; // 标记为可移除
     }
+
+    winux::ColorOutputLine( winux::fgAqua, httpClientCtxPtr->getStamp() );
 
     // 处理完请求，开始接收下一个请求头
     httpClientCtxPtr->hasHeader = false;

@@ -179,7 +179,7 @@ int Server::run()
                         else // arrivedSize <= 0
                         {
                             if ( this->_verbose ) winux::ColorOutputLine(winux::fgRed, it->second->getStamp(), "有数据到达(bytes:", arrivedSize, ")，对方了可能关闭了连接");
-                            if ( this->_verbose ) winux::ColorOutputLine(winux::fgMaroon, it->second->getStamp(), "关闭并移除");
+                            if ( this->_verbose ) winux::ColorOutputLine(winux::fgMaroon, it->second->getStamp(), "移除");
 
                             //this->_mtxServer.lock();
                             it = this->_clients.erase(it);

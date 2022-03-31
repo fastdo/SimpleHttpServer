@@ -62,6 +62,7 @@ public:
     void removeClient( winux::uint64 clientId );
 
 protected:
+    // 添加一个客户连接，会触发调用onCreateClient()创建客户场景对象
     winux::SharedPointer<ClientCtx> & _addClient( eiennet::ip::EndPoint const & clientEp, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr );
 
     winux::ThreadPool _pool; // 线程池

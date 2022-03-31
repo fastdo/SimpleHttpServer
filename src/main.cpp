@@ -82,7 +82,7 @@ int startup()
 
     HttpApp app{cfg};
 
-    app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response *rsp, void * runParam ) {
+    app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response * rsp, void * runParam ) {
         eienwebx::Request & REQ = rsp->request;
         eienwebx::Response & RSP = *rsp;
         eienwebx::App & APP = *REQ.app;
@@ -99,11 +99,13 @@ int startup()
             RSP << "URL: " << httpClientCtxPtr->url.dump().myJson() << endl;
             RSP << "GET: " << REQ.get.getVars().myJson() << endl;
             RSP << "POST: " << REQ.post.getVars().myJson() << endl;
+            RSP << "COOKIES: " << REQ.cookies.dump() << endl;
             RSP << "<hr/>\n";
             RSP << REQ.dumpEnv() << endl;
             RSP << "<hr/>\n";
             RSP << APP.dumpEnv() << endl;
         }
+
     } );
 
     return app.run(nullptr);

@@ -5,6 +5,7 @@
 namespace v2
 {
 
+/*
 HttpServerConfig::HttpServerConfig()
 {
     this->serverName = "";
@@ -32,9 +33,9 @@ HttpServerConfig::HttpServerConfig()
         { "gif", "image/gif" },
         { "ico", "image/x-icon" }
     };
-}
+}*/
 
-HttpServerConfig::HttpServerConfig( winux::ConfigureSettings const & settings )
+HttpServerConfig::HttpServerConfig( winux::ConfigureSettings const & settings ) : confSettings(settings)
 {
     this->serverName = settings["server"].get<winux::String>( "server_name", "" );
     this->serverIp = settings["server"].get<winux::String>( "server_ip", "" );
@@ -43,7 +44,7 @@ HttpServerConfig::HttpServerConfig( winux::ConfigureSettings const & settings )
     this->listenBacklog = settings["server"].get<int>( "listen_backlog", 10 );
     this->threadCount =  settings["server"].get<int>( "thread_count", 4 );
     this->retryCount =  settings["server"].get<int>( "retry_count", 10 );
-    this->sockTimeout = settings["server"].get<int>( "retry_count", 300 );
+    this->sockTimeout = settings["server"].get<int>( "sock_timeout", 300 );
     this->verboseInterval = settings["server"].get<double>( "verbose_interval", 1.0 );
     winux::Mixed::ParseBool( settings["server"].get<winux::String>( "verbose", "true" ), &this->verbose );
 

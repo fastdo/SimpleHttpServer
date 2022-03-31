@@ -22,7 +22,14 @@ ClientCtx::~ClientCtx()
 winux::String ClientCtx::getStamp() const
 {
     winux::String stamp;
-    winux::OutStringStreamWrapper(&stamp) << "[客户-" << this->clientId << "]<" << this->clientEpStr << ">";
+
+    winux::OutStringStreamWrapper(&stamp)
+    #if defined(OS_WIN)
+        << "{tid:" << GetCurrentThreadId() << "}"
+    #else
+
+    #endif
+        << "[客户-" << this->clientId << "]<" << this->clientEpStr << ">";
     return stamp;
 }
 

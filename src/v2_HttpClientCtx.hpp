@@ -10,6 +10,8 @@ class HttpClientCtx : public ClientCtx
 public:
     HttpClientCtx( HttpApp * app, winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr );
 
+    ~HttpClientCtx();
+
     // 数据接收类型
     enum DataRecvType
     {
