@@ -24,7 +24,6 @@ HttpClientCtx::HttpClientCtx( HttpApp * app, winux::uint64 clientId, winux::Stri
 
 HttpClientCtx::~HttpClientCtx()
 {
-    //app
     if ( static_cast<HttpApp*>(request.app)->_server.config.verbose )
     {
         winux::ColorOutputLine( winux::fgBlue, this->getStamp(), "析构" );

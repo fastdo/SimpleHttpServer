@@ -143,10 +143,31 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
     }
 }
 
- ClientCtx * HttpServer::onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
- {
-     return new HttpClientCtx( _app, clientId, clientEpStr, clientSockPtr );
- }
+ClientCtx * HttpServer::onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
+{
+    return new HttpClientCtx( _app, clientId, clientEpStr, clientSockPtr );
+}
+
+winux::AnsiString SubContent( winux::AnsiString const & content, size_t len )
+{
+    winux::AnsiString r;
+    for ( auto ch : content )
+    {
+        if ( len == 0 ) break;
+        if ( (winux::byte)ch > 31 && (winux::byte)ch < 128U || ch == '\r' || ch == '\n' || ch == '\t' )
+        {
+            r += ch;
+        }
+        else
+        {
+            r += winux::Format( "\\x%02X", (winux::byte)ch );
+        }
+
+        len--;
+    }
+
+    return r;
+}
 
 // 收到一个请求
 void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body )
@@ -154,23 +175,29 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     if ( this->_verbose )
     {
         auto hdrStr = header.toString();
-        winux::ColorOutputLine( winux::fgYellow, hdrStr, "body(bytes:", body.size(), ")" /*Base64Encode(body)*/ );
+        winux::ColorOutputLine( winux::fgYellow, hdrStr, "body(bytes:", body.size(), ")\n", SubContent(body,256) /*Base64Encode(body)*/ );
     }
+
 
     // 解析URL信息
     http::Url & url = httpClientCtxPtr->url;
     url.clear();
     url.parse( header.getUrl() );
-
-    url.getPath();
+    // url path
+    winux::StringArray urlPathArr;
+    winux::StrSplit( url.getPath(), "/", &urlPathArr, true );
 
     // 应该处理GET/POST/COOKIES/ENVIRON
     HttpRequest & request = httpClientCtxPtr->request;
+
     // 清空原先数据
     request.environVars.clear();
     request.cookies.clear();
     request.get.clear();
     request.post.clear();
+
+    winux::String & requestUri = request.environVars["REQUEST_URI"];
+    requestUri = header.getUrl();
 
     // 解析cookies
     request.cookies.loadCookies( header.getHeader("Cookie") );
@@ -178,6 +205,7 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     request.get.parse( url.getRawQueryStr() );
     // 解析POST变量
     http::Header::ContentType ct;
+    // 取得请求体类型
     if ( header.get( "Content-Type", &ct ) )
     {
         if ( ct.getMimeType() == "application/x-www-form-urlencoded" )
@@ -185,6 +213,50 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
             request.post.parse(body);
         }
     }
+
+    // 解析PATH_INFO方法：一层层路径判断，如果找到存在的文件，则说明后续的/是path_info，如果是文件夹，则进行下一级判断，如果路径不存在，则停止
+    winux::String urlPath;
+    winux::String urlPathInfo;
+
+    size_t i = 0;
+    while ( i < urlPathArr.size() )
+    {
+        urlPath += "/" + urlPathArr[i];
+        bool isDir = false;
+        if ( winux::DetectPath( this->config.documentRoot + winux::DirSep + urlPath, &isDir ) )
+        {
+            if ( isDir )
+            {
+                ++i;
+            }
+            else
+            {
+                ++i;
+                break;
+            }
+        }
+        else
+        {
+            i++;
+            while ( i < urlPathArr.size() )
+            {
+                urlPath += "/" + urlPathArr[i];
+                i++;
+            }
+            break;
+        }
+    }
+    while ( i < urlPathArr.size() )
+    {
+        urlPathInfo += "/" + urlPathArr[i];
+        i++;
+    }
+    if ( urlPathInfo.empty() ) urlPathInfo = urlPath;
+    request.environVars["SCRIPT_FILENAME"] = this->config.documentRoot + urlPath;
+    request.environVars["PATH_INFO"] = urlPathInfo;
+
+
+    // 路由处理，首先判断动态do文件，其次判断路由响应处理器，最后判断静态文件，如果都没有则则404。
 
     // 响应处理
     if ( true )
@@ -200,8 +272,6 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     {
         httpClientCtxPtr->canRemove = true; // 标记为可移除
     }
-
-    winux::ColorOutputLine( winux::fgAqua, httpClientCtxPtr->getStamp() );
 
     // 处理完请求，开始接收下一个请求头
     httpClientCtxPtr->hasHeader = false;

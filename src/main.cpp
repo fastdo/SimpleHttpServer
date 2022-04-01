@@ -72,6 +72,7 @@ int startup()
 
     ConfigureSettings cfg;
     cfg["$ExeDirPath"] = FilePath( GetExecutablePath() );
+    cfg["$WorkDirPath"] = ( RealPath("") );
     cfg.load("server.settings");
 
     HttpServerConfig hcp{cfg};
@@ -87,25 +88,31 @@ int startup()
         eienwebx::Response & RSP = *rsp;
         eienwebx::App & APP = *REQ.app;
 
-        RSP.setCharset("utf-8");
-        if ( REQ.header.getUrl() == "/favicon.ico" )
+        if ( REQ.header.getMethod() == "HEAD" )
         {
-            RSP.header.setResponseLine( "HTTP/1.1 404 Not found", false );
+            RSP.header.setResponseLine( "HTTP/1.1 404 Not found" );
         }
         else
         {
-            //RSP << winux::StrMultipleA("Hello my response! 你好，我的响应\n", 1000);
-            RSP << "Hello my response! 你好，我的响应\n";
-            RSP << "URL: " << httpClientCtxPtr->url.dump().myJson() << endl;
-            RSP << "GET: " << REQ.get.getVars().myJson() << endl;
-            RSP << "POST: " << REQ.post.getVars().myJson() << endl;
-            RSP << "COOKIES: " << REQ.cookies.dump() << endl;
-            RSP << "<hr/>\n";
-            RSP << REQ.dumpEnv() << endl;
-            RSP << "<hr/>\n";
-            RSP << APP.dumpEnv() << endl;
+            RSP.setCharset("utf-8");
+            if ( REQ.header.getUrl() == "/favicon.ico" )
+            {
+                RSP.header.setResponseLine( "HTTP/1.1 404 Not found" );
+            }
+            else
+            {
+                //RSP << winux::StrMultipleA("Hello my response! 你好，我的响应\n", 1000);
+                RSP << "Hello my response! 你好，我的响应\n";
+                RSP << "URL: " << httpClientCtxPtr->url.dump().myJson() << endl;
+                RSP << "GET: " << REQ.get.getVars().myJson() << endl;
+                RSP << "POST: " << REQ.post.getVars().myJson() << endl;
+                RSP << "COOKIES: " << REQ.cookies.dump() << endl;
+                RSP << "<hr/>\n";
+                RSP << REQ.dumpEnv() << endl;
+                RSP << "<hr/>\n";
+                RSP << APP.dumpEnv() << endl;
+            }
         }
-
     } );
 
     return app.run(nullptr);
