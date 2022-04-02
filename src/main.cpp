@@ -102,10 +102,10 @@ int startup()
             else
             {
                 //RSP << winux::StrMultipleA("Hello my response! 你好，我的响应\n", 1000);
-                RSP << "Hello my response! 你好，我的响应\n";
-                RSP << "URL: " << httpClientCtxPtr->url.dump().myJson() << endl;
-                RSP << "GET: " << REQ.get.getVars().myJson() << endl;
-                RSP << "POST: " << REQ.post.getVars().myJson() << endl;
+                RSP << "Hello my response! 你好，我的响应<br/>\n";
+                RSP << "URL: " << httpClientCtxPtr->url.dump().myJson(true,"  ","\n") << endl;
+                RSP << "GET: " << REQ.get.getVars().myJson(true,"  ","\n") << endl;
+                RSP << "POST: " << REQ.post.getVars().myJson(true,"  ","\n") << endl;
                 RSP << "COOKIES: " << REQ.cookies.dump() << endl;
                 RSP << "<hr/>\n";
                 RSP << REQ.dumpEnv() << endl;

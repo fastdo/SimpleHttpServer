@@ -76,7 +76,6 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                 data._setSize( (winux::uint)searchedDataSize );
 
                 // 解析头部
-                httpClientCtxPtr->request.header.clear();
                 httpClientCtxPtr->request.header.parse( data.toAnsi() );
 
                 // 额外的数据移入主数据中
@@ -92,9 +91,9 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                     if ( this->_verbose ) winux::ColorOutputLine( winux::fgGreen, httpClientCtxPtr->getStamp(), data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
                     if ( data.getSize() == httpClientCtxPtr->requestContentLength ) // 收到的数据等于请求体数据的大小
                     {
-                        winux::AnsiString body( data.getBuf<char>(), data.getSize() );
+                        httpClientCtxPtr->request.body.assign( data.getBuf<char>(), data.getSize() );
                         // 可以用线程池去处理调用onClientRequest事件
-                        this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::move(body) ).post();
+                        this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::ref(httpClientCtxPtr->request.body) ).post();
                         // 清空数据
                         data.free();
 
@@ -108,9 +107,9 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
                 } 
                 else // 没有请求体
                 {
-                    winux::AnsiString body;
+                    httpClientCtxPtr->request.body.clear();
                     // 可以用线程池去处理调用onClientRequest事件
-                    this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::move(body) ).post();
+                    this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::ref(httpClientCtxPtr->request.body) ).post();
 
                     // 等待处理请求，设置接收类型为None
                     httpClientCtxPtr->curRecvType = HttpClientCtx::drtNone;
@@ -123,9 +122,9 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
             if ( this->_verbose ) winux::ColorOutputLine( winux::fgGreen, httpClientCtxPtr->getStamp(), data.getSize(), ", ", httpClientCtxPtr->requestContentLength );
             if ( data.getSize() == httpClientCtxPtr->requestContentLength ) // 收到的数据等于请求体数据的大小
             {
-                winux::AnsiString body( data.getBuf<char>(), data.getSize() );
+                httpClientCtxPtr->request.body.assign( data.getBuf<char>(), data.getSize() );
                 // 可以用线程池去处理调用onClientRequest事件
-                this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::move(body) ).post();
+                this->_pool.task( &HttpServer::onClientRequestInternal, this, httpClientCtxPtr, std::ref(httpClientCtxPtr->request.header), std::ref(httpClientCtxPtr->request.body) ).post();
                 // 清空数据
                 data.free();
 
@@ -148,7 +147,8 @@ ClientCtx * HttpServer::onCreateClient( winux::uint64 clientId, winux::String co
     return new HttpClientCtx( _app, clientId, clientEpStr, clientSockPtr );
 }
 
-winux::AnsiString SubContent( winux::AnsiString const & content, size_t len )
+// 非文本数据用\xHH显示，如果数据过长则只显示len长度的数据
+winux::AnsiString StrTruncateAndTextualize( winux::AnsiString const & content, size_t len )
 {
     winux::AnsiString r;
     for ( auto ch : content )
@@ -175,7 +175,7 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     if ( this->_verbose )
     {
         auto hdrStr = header.toString();
-        winux::ColorOutputLine( winux::fgYellow, hdrStr, "body(bytes:", body.size(), ")\n", SubContent(body,256) /*Base64Encode(body)*/ );
+        winux::ColorOutputLine( winux::fgYellow, hdrStr, "body(bytes:", body.size(), ")\n", StrTruncateAndTextualize(body,256) /*Base64Encode(body)*/ );
     }
 
 
@@ -274,6 +274,9 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     }
 
     // 处理完请求，开始接收下一个请求头
+    httpClientCtxPtr->request.header.clear();
+    httpClientCtxPtr->request.body.clear();
+    httpClientCtxPtr->request.body.shrink_to_fit();
     httpClientCtxPtr->hasHeader = false;
     httpClientCtxPtr->curRecvType = HttpClientCtx::drtRequestHeader;
 }
