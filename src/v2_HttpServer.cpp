@@ -169,6 +169,75 @@ winux::AnsiString StrTruncateAndTextualize( winux::AnsiString const & content, s
     return r;
 }
 
+static void __ProcessMultipartFormData( char const * buf, winux::ulong size, winux::String const & boundary, http::Vars * post )
+{
+    winux::String sep = "--" + boundary; // separator
+    std::vector<int> sepNextVal = winux::KmpCalcNext( sep.c_str(), (int)sep.length() );
+    int start = 0;
+    int pos = winux::KmpMatchEx( buf, size, sep.c_str(), (int)sep.length(), start, sepNextVal );
+    if ( pos != -1 ) // first separator is found
+    {
+        start = pos + (int)sep.length();
+        sep = "\r\n--" + boundary;
+        sepNextVal = winux::KmpCalcNext( sep.c_str(), (int)sep.length() );
+
+        while ( ( pos = winux::KmpMatchEx( buf, size, sep.c_str(), (int)sep.length(), start, sepNextVal ) ) != -1 )
+        {
+            int skipN = 2; // \r\n
+            winux::AnsiString data( buf + skipN + start, ( pos - start ) - skipN ); // buf + 2 for skip \r\n
+
+            ////////////////////////////////////////////////////////////////////
+            winux::AnsiString nlnl = "\r\n\r\n";
+            int posBody = winux::KmpMatch( data.c_str(), (int)data.length(), nlnl.c_str(), (int)nlnl.length(), 0 );
+            if ( posBody != -1 )
+            {
+                winux::String headerStr = data.substr( 0, posBody );
+
+                char const * body = data.c_str() + posBody + nlnl.length();
+                int bodySize = (int)data.length() - posBody - (int)nlnl.length();
+
+                http::Header header; // 头部
+                header.parse(headerStr);
+
+                http::Header::ContentDisposition cttDpn;
+                header.get( "Content-Disposition", &cttDpn );
+                if ( cttDpn.hasOption("filename") ) // 含有filename是上传文件
+                {
+                    winux::String filename = cttDpn.getOption("filename");
+                    winux::Mixed v; // 将其组成一个map作为post变量
+                    v.createCollection();
+                    v["name"] = filename;
+                    v["size"] = bodySize;
+                    v["mime"] = header["Content-Type"];
+
+                    if ( !filename.empty() )
+                    {
+                        winux::SimpleHandle<char*> tmpPath( _tempnam( "", "upload_" ), (char*)NULL, free );
+                        v["path"] = tmpPath.get(); // 临时文件路径
+                        winux::File f( tmpPath.get(), "wb" ); // 将上传的内容存入临时文件
+                        f.write( body, bodySize );
+                    }
+                    else
+                    {
+                        v["path"] = ""; // 临时文件路径
+                    }
+
+                    (*post)[ cttDpn.getOption("name") ] = v;
+                }
+                else // 是普通Post变量
+                {
+                    winux::String varVal;
+                    varVal.resize( bodySize + 1 );
+                    memcpy( &varVal[0], body, bodySize );
+                    (*post)[ cttDpn.getOption("name") ] = varVal.c_str();
+                }
+            }
+            ////////////////////////////////////////////////////////////////////
+            start = pos + (int)sep.length();
+        }
+    }
+}
+
 // 根据文档根目录内实际文件，拆解URL路径部分字符串为urlPath和requestPathInfo
 void SplitUrlPath( winux::String const & urlPathRaw, winux::String const & documentRootDir, winux::String * urlPath, winux::String * requestPathInfo )
 {
@@ -212,8 +281,8 @@ void SplitUrlPath( winux::String const & urlPathRaw, winux::String const & docum
     if ( urlPath->empty() ) *urlPath = *requestPathInfo;
 }
 
-// 拆解URL路径部分字符串为urlPath和requestPathInfo
-void SplitUrlPath2( winux::String const & urlPathRaw, winux::String const & documentRootDir, winux::String * urlPath, winux::String * requestPathInfo )
+// 拆解URL路径部分字符串为urlPath和requestPathInfo，以含扩展名的部分作分隔
+void SplitUrlPath2( winux::String const & urlPathRaw, winux::String const & documentRootDir, winux::String * urlPath, winux::String * requestPathInfo, winux::String * extName )
 {
     // url路径，子路径数组
     winux::StringArray urlPathArr;
@@ -223,11 +292,10 @@ void SplitUrlPath2( winux::String const & urlPathRaw, winux::String const & docu
     while ( i < urlPathArr.size() )
     {
         *urlPath += "/" + urlPathArr[i];
-        winux::String extName;
-        winux::FileTitle( urlPathArr[i], &extName );
+        winux::FileTitle( urlPathArr[i], extName );
         i++;
 
-        if ( !extName.empty() ) break;
+        if ( !extName->empty() ) break;
     }
 
     while ( i < urlPathArr.size() )
@@ -272,9 +340,14 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     // 取得请求体类型
     if ( header.get( "Content-Type", &ct ) )
     {
-        if ( ct.getMimeType() == "application/x-www-form-urlencoded" )
+        winux::String contentMimeType = ct.getMimeType();
+        if ( contentMimeType == "application/x-www-form-urlencoded" )
         {
             request.post.parse(body);
+        }
+        else if ( contentMimeType == "multipart/form-data" )
+        {
+            __ProcessMultipartFormData( body.c_str(), (winux::ulong)body.size(), ct.getBoundary(), &request.post );
         }
     }
 
@@ -284,8 +357,8 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
 
     winux::String urlPath;
     winux::String requestPathInfo;
-    //SplitUrlPath( urlPathRaw, this->config.documentRoot, &urlPath, &requestPathInfo );
-    SplitUrlPath2( urlPathRaw, this->config.documentRoot, &urlPath, &requestPathInfo );
+    winux::String extName;
+    SplitUrlPath2( urlPathRaw, this->config.documentRoot, &urlPath, &requestPathInfo, &extName );
 
     // 记下环境变量
     request.environVars["DOCUMENT_ROOT"] = this->config.documentRoot;
@@ -294,8 +367,6 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     request.environVars["PATH_INFO"] = requestPathInfo;
 
     // 路由处理，首先判断动态do文件，其次判断路由响应处理器，最后判断静态文件，如果都没有则则404。
-    winux::String extName;
-    winux::FileTitle( urlPath, &extName );
 
     // 响应处理
     if ( true )
