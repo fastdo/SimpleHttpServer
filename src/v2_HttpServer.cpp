@@ -169,23 +169,87 @@ winux::AnsiString StrTruncateAndTextualize( winux::AnsiString const & content, s
     return r;
 }
 
+// 根据文档根目录内实际文件，拆解URL路径部分字符串为urlPath和requestPathInfo
+void SplitUrlPath( winux::String const & urlPathRaw, winux::String const & documentRootDir, winux::String * urlPath, winux::String * requestPathInfo )
+{
+    // url路径，子路径数组
+    winux::StringArray urlPathArr;
+    winux::StrSplit( urlPathRaw, "/", &urlPathArr, true );
+
+    // 求urlPath和PATH_INFO：一层层路径判断，如果找到存在的文件，则说明后续的/...是PATH_INFO，如果是文件夹，则进行下一级判断，如果路径不存在，则当前及之后部分当成requestPathInfo，如果之前urlPath为空则urlPath赋为requestPathInfo
+    winux::String tmpPath;
+    size_t i = 0;
+    while ( i < urlPathArr.size() )
+    {
+        tmpPath += "/" + urlPathArr[i];
+        bool isDir = false;
+        if ( winux::DetectPath( documentRootDir + winux::DirSep + tmpPath, &isDir ) )
+        {
+            if ( isDir )
+            {
+                *urlPath = tmpPath;
+                i++;
+            }
+            else
+            {
+                *urlPath = tmpPath;
+                i++;
+                break;
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    while ( i < urlPathArr.size() )
+    {
+        *requestPathInfo += "/" + urlPathArr[i];
+        i++;
+    }
+
+    if ( urlPath->empty() ) *urlPath = *requestPathInfo;
+}
+
+// 拆解URL路径部分字符串为urlPath和requestPathInfo
+void SplitUrlPath2( winux::String const & urlPathRaw, winux::String const & documentRootDir, winux::String * urlPath, winux::String * requestPathInfo )
+{
+    // url路径，子路径数组
+    winux::StringArray urlPathArr;
+    winux::StrSplit( urlPathRaw, "/", &urlPathArr, true );
+
+    size_t i = 0;
+    while ( i < urlPathArr.size() )
+    {
+        *urlPath += "/" + urlPathArr[i];
+        winux::String extName;
+        winux::FileTitle( urlPathArr[i], &extName );
+        i++;
+
+        if ( !extName.empty() ) break;
+    }
+
+    while ( i < urlPathArr.size() )
+    {
+        *requestPathInfo += "/" + urlPathArr[i];
+        i++;
+    }
+}
+
 // 收到一个请求
 void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body )
 {
     if ( this->_verbose )
     {
         auto hdrStr = header.toString();
-        winux::ColorOutputLine( winux::fgYellow, hdrStr, "body(bytes:", body.size(), ")\n", StrTruncateAndTextualize(body,256) /*Base64Encode(body)*/ );
+        winux::ColorOutputLine( winux::fgYellow, httpClientCtxPtr->getStamp(), "\n", hdrStr, "body(bytes:", body.size(), ")\n", StrTruncateAndTextualize(body,256) /*Base64Encode(body)*/ );
     }
-
 
     // 解析URL信息
     http::Url & url = httpClientCtxPtr->url;
     url.clear();
-    url.parse( header.getUrl() );
-    // url path
-    winux::StringArray urlPathArr;
-    winux::StrSplit( url.getPath(), "/", &urlPathArr, true );
+    url.parse( header.getUrl(), false, true, true, true, true );
 
     // 应该处理GET/POST/COOKIES/ENVIRON
     HttpRequest & request = httpClientCtxPtr->request;
@@ -196,8 +260,8 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     request.get.clear();
     request.post.clear();
 
-    winux::String & requestUri = request.environVars["REQUEST_URI"];
-    requestUri = header.getUrl();
+    // 记下REQUEST_URI
+    request.environVars["REQUEST_URI"] = header.getUrl();
 
     // 解析cookies
     request.cookies.loadCookies( header.getHeader("Cookie") );
@@ -214,57 +278,43 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
         }
     }
 
-    // 解析PATH_INFO方法：一层层路径判断，如果找到存在的文件，则说明后续的/是path_info，如果是文件夹，则进行下一级判断，如果路径不存在，则停止
+    // 拆解路径部分信息
+    winux::String urlPathRaw = url.getPath();
+    request.environVars["ORIG_PATH_INFO"] = "/" + urlPathRaw;
+
     winux::String urlPath;
-    winux::String urlPathInfo;
+    winux::String requestPathInfo;
+    //SplitUrlPath( urlPathRaw, this->config.documentRoot, &urlPath, &requestPathInfo );
+    SplitUrlPath2( urlPathRaw, this->config.documentRoot, &urlPath, &requestPathInfo );
 
-    size_t i = 0;
-    while ( i < urlPathArr.size() )
-    {
-        urlPath += "/" + urlPathArr[i];
-        bool isDir = false;
-        if ( winux::DetectPath( this->config.documentRoot + winux::DirSep + urlPath, &isDir ) )
-        {
-            if ( isDir )
-            {
-                ++i;
-            }
-            else
-            {
-                ++i;
-                break;
-            }
-        }
-        else
-        {
-            i++;
-            while ( i < urlPathArr.size() )
-            {
-                urlPath += "/" + urlPathArr[i];
-                i++;
-            }
-            break;
-        }
-    }
-    while ( i < urlPathArr.size() )
-    {
-        urlPathInfo += "/" + urlPathArr[i];
-        i++;
-    }
-    if ( urlPathInfo.empty() ) urlPathInfo = urlPath;
+    // 记下环境变量
+    request.environVars["DOCUMENT_ROOT"] = this->config.documentRoot;
     request.environVars["SCRIPT_FILENAME"] = this->config.documentRoot + urlPath;
-    request.environVars["PATH_INFO"] = urlPathInfo;
-
+    request.environVars["SCRIPT_NAME"] = urlPath;
+    request.environVars["PATH_INFO"] = requestPathInfo;
 
     // 路由处理，首先判断动态do文件，其次判断路由响应处理器，最后判断静态文件，如果都没有则则404。
+    winux::String extName;
+    winux::FileTitle( urlPath, &extName );
 
     // 响应处理
     if ( true )
     {
         // 创建响应
         eienwebx::Response rsp{ request, winux::MakeSimple( new HttpOutputMgr( httpClientCtxPtr->clientSockPtr.get() ) ) };
-        // 调用WebMain处理函数
-        this->onWebMain( httpClientCtxPtr, &rsp, rsp.request.app->getRunParam() );
+
+        if ( extName == "do" )
+        {
+            // 执行do文件
+            int rc;
+            _app->execWebMain( request.environVars["SCRIPT_FILENAME"], &rsp, _app->getRunParam(), &rc );
+        }
+        else
+        {
+            // 调用WebPage处理函数
+            this->onWebPage( httpClientCtxPtr, *_app, request, rsp );
+        }
+
     }
 
     // 检测Connection是否保活
@@ -273,7 +323,7 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
         httpClientCtxPtr->canRemove = true; // 标记为可移除
     }
 
-    // 处理完请求，开始接收下一个请求头
+    // 处理完请求，清理header和body，开始接收下一个请求头
     httpClientCtxPtr->request.header.clear();
     httpClientCtxPtr->request.body.clear();
     httpClientCtxPtr->request.body.shrink_to_fit();

@@ -8,11 +8,11 @@ class HttpClientCtx;
 /** \brief HTTP服务器 */
 class HttpServer : public Server
 {
-    // 一个完整请求到来
+    // 处理一个Web页面逻辑
     _DEFINE_EVENT_RELATED(
-        WebMain,
-        ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response * rsp, void * runParam ),
-        ( httpClientCtxPtr, rsp, runParam )
+        WebPage,
+        ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ),
+        ( httpClientCtxPtr, APP, REQ, RSP )
     )
 
 public:

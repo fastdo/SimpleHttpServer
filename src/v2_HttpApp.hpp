@@ -11,7 +11,7 @@ public:
 
     virtual int run( void * runParam ) override;
 
-    void onWebMainHandler( HttpServer::WebMainHandlerFunction handler ) { _server.onWebMainHandler(handler); }
+    void onWebPageHandler( HttpServer::WebPageHandlerFunction handler ) { _server.onWebPageHandler(handler); }
 
 protected:
     HttpServer _server;

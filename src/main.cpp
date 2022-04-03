@@ -71,7 +71,8 @@ int startup()
     SocketLib initSock;
 
     ConfigureSettings cfg;
-    cfg["$ExeDirPath"] = FilePath( GetExecutablePath() );
+    String exeFile;
+    cfg["$ExeDirPath"] = FilePath( GetExecutablePath(), &exeFile );
     cfg["$WorkDirPath"] = ( RealPath("") );
     cfg.load("server.settings");
 
@@ -80,33 +81,28 @@ int startup()
 
     ColorOutputLine( fgYellow, cfg.val().myJson( true, "  ", "\n" ) );
 
-
     HttpApp app{cfg};
 
-    app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response * rsp, void * runParam ) {
-        eienwebx::Request & REQ = rsp->request;
-        eienwebx::Response & RSP = *rsp;
-        eienwebx::App & APP = *REQ.app;
-
+    app.onWebPageHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ) {
         if ( REQ.header.getMethod() == "HEAD" )
         {
             RSP.header.setResponseLine( "HTTP/1.1 404 Not found" );
         }
         else
         {
-            RSP.setCharset("utf-8");
             if ( REQ.header.getUrl() == "/favicon.ico" )
             {
                 RSP.header.setResponseLine( "HTTP/1.1 404 Not found" );
             }
             else
             {
+                RSP.setCharset("utf-8");
                 //RSP << winux::StrMultipleA("Hello my response! 你好，我的响应\n", 1000);
                 RSP << "Hello my response! 你好，我的响应<br/>\n";
-                RSP << "URL: " << httpClientCtxPtr->url.dump().myJson(true,"  ","\n") << endl;
+                //RSP << "URL: " << httpClientCtxPtr->url.dump().myJson(true,"  ","\n") << endl;
                 RSP << "GET: " << REQ.get.getVars().myJson(true,"  ","\n") << endl;
                 RSP << "POST: " << REQ.post.getVars().myJson(true,"  ","\n") << endl;
-                RSP << "COOKIES: " << REQ.cookies.dump() << endl;
+                RSP << "COOKIES: " << REQ.cookies.dump().myJson(true,"  ","\n") << endl;
                 RSP << "<hr/>\n";
                 RSP << REQ.dumpEnv() << endl;
                 RSP << "<hr/>\n";
