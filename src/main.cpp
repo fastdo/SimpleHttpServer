@@ -14,58 +14,6 @@ using namespace std;
 using namespace winux;
 using namespace eiennet;
 
-//int startup_1()
-//{
-//    SocketLib initSock;
-//    HttpServer server( ip::EndPoint(":18080") );
-//
-//    server.onClientRequestHandler( [] ( SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, AnsiString & body ) {
-//        auto str = header.toString();
-//        if ( v2::outputVerbose )
-//        {
-//            ColorOutputLine( fgYellow, str, body.size() /*Base64Encode(body)*/ );
-//        }
-//
-//        if ( header.getUrl() == "/favicon.ico" )
-//        {
-//            /*clientCtxPtr->clientSockPtr->send(
-//                "HTTP/1.1 401 Unauthorized\r\n"
-//                "WWW-Authenticate: Basic realm=\"Access the favicon.ico\"\r\n"
-//                "Content-Length: 0\r\n"
-//                //"Connection: keep-alive\r\n"
-//                "\r\n"
-//            );*/
-//            httpClientCtxPtr->clientSockPtr->send(
-//                "HTTP/1.1 404 Not found\r\n"
-//                //"Content-Type: text/html\r\n"
-//                "Content-Length: 0\r\n"
-//                //"Connection: keep-alive\r\n"
-//                "\r\n"
-//            );
-//        }
-//        else
-//        {
-//            /*std::cout
-//                << httpClientCtxPtr->body.capacity() << std::endl
-//                << httpClientCtxPtr->forClient.data.getCapacity() << std::endl
-//                << httpClientCtxPtr->forClient.extraData.getCapacity() << std::endl
-//                ;*/
-//
-//            httpClientCtxPtr->clientSockPtr->send(
-//                "HTTP/1.1 200 OK\r\n"
-//                "Content-Type: text/html\r\n"
-//                "Content-Length: 13\r\n"
-//                //"Connection: keep-alive\r\n"
-//                "\r\n"
-//                "Hello world!\n"
-//            );
-//        }
-//    } );
-//
-//    return server.run();
-//}
-
-
 int startup()
 {
     SocketLib initSock;
@@ -77,13 +25,15 @@ int startup()
     cfg.load("server.settings");
 
     HttpServerConfig hcp{cfg};
-    //cout << hcp.documentIndex << endl;
 
     ColorOutputLine( fgYellow, cfg.val().myJson( true, "  ", "\n" ) );
 
     HttpApp app{cfg};
 
-    app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ) {
+    app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
+        eienwebx::Request & REQ = RSP.request;
+        eienwebx::App & APP = *REQ.app;
+
         if ( REQ.header.getMethod() == "HEAD" )
         {
             RSP.header.setResponseLine( "HTTP/1.1 404 Not found" );
@@ -111,7 +61,10 @@ int startup()
         }
     } );
 
-    app.setRouteHandler( "*", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ) {
+    app.setRouteHandler( "POST", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
+        eienwebx::Request & REQ = RSP.request;
+        eienwebx::App & APP = *REQ.app;
+
         RSP << "<h1>handle route</h1>\n";
         RSP << "GET: " << REQ.get.getVars().myJson(true,"  ","\n") << endl;
         RSP << "POST: " << REQ.post.getVars().myJson(true,"  ","\n") << endl;
@@ -122,7 +75,7 @@ int startup()
         RSP << APP.dumpEnv() << endl;
     } );
 
-    auto fn = [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP, winux::StringArray const & urlPathArr, size_t i ) -> bool {
+    /*auto fn = [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP, winux::StringArray const & urlPathArr, size_t i ) -> bool {
         cout << Mixed(urlPathArr[i]).myJson() << endl;
         RSP
             << "<div>" << Mixed(urlPathArr[i]).myJson()
@@ -131,12 +84,12 @@ int startup()
         return true;
     };
 
-    app.setCrossRouteHandler( "*", "/", fn );
+    //app.setCrossRouteHandler( "*", "/", fn );
     app.setCrossRouteHandler( "*", "/testdir", fn );
     app.setCrossRouteHandler( "*", "/testdir/index", fn );
     app.setCrossRouteHandler( "*", "/testdir/index/abc", fn );
     app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz/123", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz/123", fn );*/
 
 
     return app.run(nullptr);

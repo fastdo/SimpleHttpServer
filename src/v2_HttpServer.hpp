@@ -11,24 +11,15 @@ class HttpServer : public Server
     // 处理一个WebMain逻辑
     _DEFINE_EVENT_RELATED(
         WebMain,
-        ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ),
-        ( httpClientCtxPtr, APP, REQ, RSP )
+        ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ),
+        ( httpClientCtxPtr, RSP )
     )
 
 public:
     // 过径路由处理函数类型
-    using CrossRouteHandlerFunction = std::function<
-        bool (
-            winux::SharedPointer<HttpClientCtx> httpClientCtxPtr,
-            eienwebx::App & APP,
-            eienwebx::Request & REQ,
-            eienwebx::Response & RSP,
-            winux::StringArray const & urlPathArr,
-            size_t i
-        )
-    >;
+    using CrossRouteHandlerFunction = std::function< bool ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP, winux::StringArray const & urlPathArr, size_t i ) >;
     // 终点路由处理函数类型
-    using RouteHandlerFunction = std::function< void ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ) >;
+    using RouteHandlerFunction = std::function< void ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) >;
 
     /** \brief 构造函数1，不会启动服务，必须手动调用startup() */
     HttpServer( HttpApp * app, HttpServerConfig const & httpConfig );

@@ -374,11 +374,11 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     winux::String urlPathRaw = url.getPath();
     request.environVars["ORIG_PATH_INFO"] = "/" + urlPathRaw;
 
-    winux::String urlPath; // 会以/开头
+    winux::String urlPath; // URL路径，会以/开头
     winux::StringArray urlPathArr; // 第一个元素始终是空串，表示起始根路径
-    size_t iEndUrlPath; // 索引停止在urlPath所达到的那个部分
+    size_t iEndUrlPath; // 停止在urlPath所达到的那个部分的索引
     winux::String requestPathInfo;
-    winux::String extName;
+    winux::String extName; // 扩展名
     ProcessUrlPath( urlPathRaw, this->config.documentRoot, &urlPathArr, &iEndUrlPath, &urlPath, &requestPathInfo, &extName );
 
     // 记下环境变量
@@ -388,7 +388,7 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     request.environVars["PATH_INFO"] = requestPathInfo;
 
 
-    // 响应处理，首先判断动态do文件，其次判断路由响应处理器，最后判断静态文件，如果都没有则则404。
+    // 响应处理，首先判断路由响应处理器，其次判断do文件，最后判断静态文件，如果都没有则则404。
     if ( true )
     {
         // 创建响应
@@ -396,7 +396,6 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
 
         // 路由处理，有两种路由处理，一种是过径路由，一种是普通路由
         // 过径路由指URLPATH包含这个路径，这个路径注册的处理器会被调用，并且继续下去，直至找不到或达到路径终止索引或处理器返回false
-        winux::ColorOutputLine( winux::fgTeal, urlPathArr, ", ", iEndUrlPath );
         for ( size_t i = 0; i < urlPathArr.size(); i++ )
         {
             if ( i < _crossRouter.size() )
@@ -410,7 +409,7 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
                     {
                         if ( methodRouter[ header.getMethod() ] )
                         {
-                            if ( !methodRouter[ header.getMethod() ]( httpClientCtxPtr, *_app, request, rsp, urlPathArr, i ) )
+                            if ( !methodRouter[ header.getMethod() ]( httpClientCtxPtr, rsp, urlPathArr, i ) )
                                 break;
                         }
                     }
@@ -418,7 +417,7 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
                     {
                         if ( methodRouter["*"] )
                         {
-                            if ( !methodRouter["*"]( httpClientCtxPtr, *_app, request, rsp, urlPathArr, i ) )
+                            if ( !methodRouter["*"]( httpClientCtxPtr, rsp, urlPathArr, i ) )
                                 break;
                         }
                     }
@@ -439,39 +438,72 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
             }
         }
 
-        if ( extName == "do" )
+        // 普通路由指调用URLPATH这个路径注册的处理器
+        if ( _router.find(urlPath) != _router.end() )
         {
-            // 执行do文件
-            int rc;
-            _app->execWebMain( request.environVars["SCRIPT_FILENAME"], &rsp, _app->getRunParam(), &rc );
+            auto & methodRouter = _router[urlPath];
+            if ( methodRouter.find( header.getMethod() ) != methodRouter.end() )
+            {
+                methodRouter[ header.getMethod() ]( httpClientCtxPtr, rsp );
+            }
+            else if (  methodRouter.find("*") != methodRouter.end() )
+            {
+                methodRouter["*"]( httpClientCtxPtr, rsp );
+            }
+            else
+            {
+                rsp.header.setResponseLine( "HTTP/1.1 501 Not implemented", false );
+            }
         }
         else
         {
-            // 普通路由指调用URLPATH这个路径注册的处理器
-            if ( _router.find(urlPath) != _router.end() )
+            bool found = false; // 是否找到文件
+            winux::String fullPath;
+            if ( extName == "" ) // 没有扩展名，接上documentIndex
             {
-                auto & methodRouter = _router[urlPath];
-                if ( methodRouter.find( header.getMethod() ) != methodRouter.end() )
+                for ( auto const & indexFileName : this->config.documentIndex )
                 {
-                    methodRouter[ header.getMethod() ]( httpClientCtxPtr, *_app, request, rsp );
-                }
-                else if (  methodRouter.find("*") != methodRouter.end() )
-                {
-                    methodRouter["*"]( httpClientCtxPtr, *_app, request, rsp );
-                }
-                else
-                {
-                    // 调用WebMain处理函数
-                    this->onWebMain( httpClientCtxPtr, *_app, request, rsp );
+                    winux::FileTitle( indexFileName, &extName );
+                    fullPath = winux::CombinePath( this->config.documentRoot + urlPath, indexFileName );
+                    if ( winux::DetectPath(fullPath) )
+                    {
+                        found = true;
+                        break;
+                    }
                 }
             }
             else
             {
-                // 调用WebMain处理函数
-                this->onWebMain( httpClientCtxPtr, *_app, request, rsp );
+                fullPath = this->config.documentRoot + urlPath;
+                if ( winux::DetectPath(fullPath) )
+                {
+                    found = true;
+                }
             }
-        }
 
+            if ( found )
+            {
+                if ( extName == "do" )
+                {
+                    // 执行do文件
+                    int rc;
+                    _app->execWebMain( fullPath, &rsp, _app->getRunParam(), &rc );
+                }
+                else
+                {
+                    // 静态文件
+                    winux::Buffer data = winux::FileGetContentsEx( fullPath, false );
+                    rsp.header["Content-Type"] = this->config.getMime(extName);
+                    rsp.write(data);
+                }
+            }
+            else
+            {
+                rsp.header.setResponseLine( "HTTP/1.1 404 Not found", false );
+            }
+            // 调用WebMain处理函数
+            //this->onWebMain( httpClientCtxPtr, rsp );
+        }
     }
 
     // 检测Connection是否保活
