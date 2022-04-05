@@ -124,7 +124,10 @@ int startup()
 
     auto fn = [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP, winux::StringArray const & urlPathArr, size_t i ) -> bool {
         cout << Mixed(urlPathArr[i]).myJson() << endl;
-        RSP << "<div>" << Mixed(urlPathArr[i]).myJson() << "</div>\n";
+        RSP
+            << "<div>" << Mixed(urlPathArr[i]).myJson()
+            << ", " << Mixed( StrJoinEx( "/", urlPathArr, i + 1 ) ).myJson()
+            << "</div>\n";
         return true;
     };
 
