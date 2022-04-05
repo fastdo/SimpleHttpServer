@@ -8,14 +8,27 @@ class HttpClientCtx;
 /** \brief HTTP服务器 */
 class HttpServer : public Server
 {
-    // 处理一个Web页面逻辑
+    // 处理一个WebMain逻辑
     _DEFINE_EVENT_RELATED(
-        WebPage,
+        WebMain,
         ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ),
         ( httpClientCtxPtr, APP, REQ, RSP )
     )
 
 public:
+    // 过径路由处理函数类型
+    using CrossRouteHandlerFunction = std::function<
+        bool (
+            winux::SharedPointer<HttpClientCtx> httpClientCtxPtr,
+            eienwebx::App & APP,
+            eienwebx::Request & REQ,
+            eienwebx::Response & RSP,
+            winux::StringArray const & urlPathArr,
+            size_t i
+        )
+    >;
+    // 终点路由处理函数类型
+    using RouteHandlerFunction = std::function< void ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ) >;
 
     /** \brief 构造函数1，不会启动服务，必须手动调用startup() */
     HttpServer( HttpApp * app, HttpServerConfig const & httpConfig );
@@ -39,6 +52,12 @@ public:
         bool verbose = true
     );
 
+    /** \brief 注册过径路由处理器 method可以是*表示通配所有HTTP方法，path需以/开头 */
+    void setCrossRouteHandler( winux::String const & method, winux::String const & path, CrossRouteHandlerFunction handler );
+
+    /** \brief 注册普通路由处理器 method可以是*表示通配所有HTTP方法，path需以/开头 */
+    void setRouteHandler( winux::String const & method, winux::String const & path, RouteHandlerFunction handler );
+
     /** \brief HTTP服务器配置对象 */
     HttpServerConfig config;
 protected:
@@ -48,6 +67,21 @@ protected:
 
     // 应用程序对象指针
     HttpApp * _app;
+
+    // 路由处理器
+    // 过径路由器
+    /*
+        [
+            { subpath: { GET: handleGet, POST: handlePost, ... }, ... },
+            ...
+        ]
+     */
+    std::vector< std::unordered_map< winux::String, std::unordered_map< winux::String, CrossRouteHandlerFunction > > > _crossRouter;
+    // 普通路由器
+    /*
+        { path: { GET: handleGet, POST: handlePost, ... }, ... }
+     */
+    std::unordered_map< winux::String, std::unordered_map< winux::String, RouteHandlerFunction > > _router;
 private:
     void onClientRequestInternal( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body );
 };

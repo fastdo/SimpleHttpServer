@@ -83,7 +83,7 @@ int startup()
 
     HttpApp app{cfg};
 
-    app.onWebPageHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ) {
+    app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ) {
         if ( REQ.header.getMethod() == "HEAD" )
         {
             RSP.header.setResponseLine( "HTTP/1.1 404 Not found" );
@@ -110,6 +110,31 @@ int startup()
             }
         }
     } );
+
+    app.setRouteHandler( "*", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP ) {
+        RSP << "<h1>handle route</h1>\n";
+        RSP << "GET: " << REQ.get.getVars().myJson(true,"  ","\n") << endl;
+        RSP << "POST: " << REQ.post.getVars().myJson(true,"  ","\n") << endl;
+        RSP << "COOKIES: " << REQ.cookies.dump().myJson(true,"  ","\n") << endl;
+        RSP << "<hr/>\n";
+        RSP << REQ.dumpEnv() << endl;
+        RSP << "<hr/>\n";
+        RSP << APP.dumpEnv() << endl;
+    } );
+
+    auto fn = [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP, winux::StringArray const & urlPathArr, size_t i ) -> bool {
+        cout << Mixed(urlPathArr[i]).myJson() << endl;
+        RSP << "<div>" << Mixed(urlPathArr[i]).myJson() << "</div>\n";
+        return true;
+    };
+
+    app.setCrossRouteHandler( "*", "/", fn );
+    app.setCrossRouteHandler( "*", "/testdir", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index/abc", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz/123", fn );
+
 
     return app.run(nullptr);
 }

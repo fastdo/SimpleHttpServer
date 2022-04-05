@@ -282,26 +282,45 @@ void SplitUrlPath( winux::String const & urlPathRaw, winux::String const & docum
 }
 
 // 拆解URL路径部分字符串为urlPath和requestPathInfo，以含扩展名的部分作分隔
-void SplitUrlPath2( winux::String const & urlPathRaw, winux::String const & documentRootDir, winux::String * urlPath, winux::String * requestPathInfo, winux::String * extName )
+void ProcessUrlPath( winux::String const & urlPathRaw, winux::String const & documentRootDir, winux::StringArray * urlPathArr, size_t * iEndUrlPath, winux::String * urlPath, winux::String * requestPathInfo, winux::String * extName )
 {
     // url路径，子路径数组
-    winux::StringArray urlPathArr;
-    winux::StrSplit( urlPathRaw, "/", &urlPathArr, true );
+    winux::StrSplit( urlPathRaw, "/", urlPathArr, false );
 
-    size_t i = 0;
-    while ( i < urlPathArr.size() )
+    urlPathArr->insert( urlPathArr->begin(), "" );
+    *iEndUrlPath = 0;
+
+    if ( urlPathArr->size() > 1 )
     {
-        *urlPath += "/" + urlPathArr[i];
-        winux::FileTitle( urlPathArr[i], extName );
-        i++;
+        size_t i = 1;
+        while ( i < urlPathArr->size() )
+        {
+            winux::String & comp = (*urlPathArr)[i];
+            *urlPath += "/" + comp;
+            winux::FileTitle( comp, extName );
 
-        if ( !extName->empty() ) break;
+            *iEndUrlPath = i;
+
+            i++;
+
+            if ( !extName->empty() )
+                break;
+        }
+
+        while ( i < urlPathArr->size() )
+        {
+            winux::String & comp = (*urlPathArr)[i];
+            *requestPathInfo += "/" + comp;
+
+            if ( extName->empty() )
+                *iEndUrlPath = i;
+
+            i++;
+        }
     }
-
-    while ( i < urlPathArr.size() )
+    else
     {
-        *requestPathInfo += "/" + urlPathArr[i];
-        i++;
+        *urlPath += "/";
     }
 }
 
@@ -355,24 +374,70 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     winux::String urlPathRaw = url.getPath();
     request.environVars["ORIG_PATH_INFO"] = "/" + urlPathRaw;
 
-    winux::String urlPath;
+    winux::String urlPath; // 会以/开头
+    winux::StringArray urlPathArr; // 第一个元素始终是空串，表示起始根路径
+    size_t iEndUrlPath; // 索引停止在urlPath所达到的那个部分
     winux::String requestPathInfo;
     winux::String extName;
-    SplitUrlPath2( urlPathRaw, this->config.documentRoot, &urlPath, &requestPathInfo, &extName );
+    ProcessUrlPath( urlPathRaw, this->config.documentRoot, &urlPathArr, &iEndUrlPath, &urlPath, &requestPathInfo, &extName );
 
     // 记下环境变量
     request.environVars["DOCUMENT_ROOT"] = this->config.documentRoot;
     request.environVars["SCRIPT_FILENAME"] = this->config.documentRoot + urlPath;
-    request.environVars["SCRIPT_NAME"] = urlPath;
+    request.environVars["URL_PATH"] = request.environVars["SCRIPT_NAME"] = urlPath;
     request.environVars["PATH_INFO"] = requestPathInfo;
 
-    // 路由处理，首先判断动态do文件，其次判断路由响应处理器，最后判断静态文件，如果都没有则则404。
 
-    // 响应处理
+    // 响应处理，首先判断动态do文件，其次判断路由响应处理器，最后判断静态文件，如果都没有则则404。
     if ( true )
     {
         // 创建响应
         eienwebx::Response rsp{ request, winux::MakeSimple( new HttpOutputMgr( httpClientCtxPtr->clientSockPtr.get() ) ) };
+
+        // 路由处理，有两种路由处理，一种是过径路由，一种是普通路由
+        // 过径路由指URLPATH包含这个路径，这个路径注册的处理器会被调用，并且继续下去，直至找不到或达到路径终止索引或处理器返回false
+        winux::ColorOutputLine( winux::fgTeal, urlPathArr, ", ", iEndUrlPath );
+        for ( size_t i = 0; i < urlPathArr.size(); i++ )
+        {
+            if ( i < _crossRouter.size() )
+            {
+                auto & subPathRouter = _crossRouter[i];
+                if ( subPathRouter.find( urlPathArr[i] ) != subPathRouter.end() )
+                {
+                    auto & methodRouter = subPathRouter[ urlPathArr[i] ];
+
+                    if ( methodRouter.find( header.getMethod() ) != methodRouter.end() )
+                    {
+                        if ( methodRouter[ header.getMethod() ] )
+                        {
+                            if ( !methodRouter[ header.getMethod() ]( httpClientCtxPtr, *_app, request, rsp, urlPathArr, i ) )
+                                break;
+                        }
+                    }
+                    else if (  methodRouter.find("*") != methodRouter.end() )
+                    {
+                        if ( methodRouter["*"] )
+                        {
+                            if ( !methodRouter["*"]( httpClientCtxPtr, *_app, request, rsp, urlPathArr, i ) )
+                                break;
+                        }
+                    }
+
+                    if ( i == iEndUrlPath )
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
 
         if ( extName == "do" )
         {
@@ -382,8 +447,29 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
         }
         else
         {
-            // 调用WebPage处理函数
-            this->onWebPage( httpClientCtxPtr, *_app, request, rsp );
+            // 普通路由指调用URLPATH这个路径注册的处理器
+            if ( _router.find(urlPath) != _router.end() )
+            {
+                auto & methodRouter = _router[urlPath];
+                if ( methodRouter.find( header.getMethod() ) != methodRouter.end() )
+                {
+                    methodRouter[ header.getMethod() ]( httpClientCtxPtr, *_app, request, rsp );
+                }
+                else if (  methodRouter.find("*") != methodRouter.end() )
+                {
+                    methodRouter["*"]( httpClientCtxPtr, *_app, request, rsp );
+                }
+                else
+                {
+                    // 调用WebMain处理函数
+                    this->onWebMain( httpClientCtxPtr, *_app, request, rsp );
+                }
+            }
+            else
+            {
+                // 调用WebMain处理函数
+                this->onWebMain( httpClientCtxPtr, *_app, request, rsp );
+            }
         }
 
     }
@@ -400,6 +486,44 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
     httpClientCtxPtr->request.body.shrink_to_fit();
     httpClientCtxPtr->hasHeader = false;
     httpClientCtxPtr->curRecvType = HttpClientCtx::drtRequestHeader;
+}
+
+void HttpServer::setCrossRouteHandler( winux::String const & method, winux::String const & path, CrossRouteHandlerFunction handler )
+{
+    winux::StringArray urlPathArr;
+    if ( path.length() > 0 && path[0] == '/' )
+    {
+        winux::StrSplit( path.substr(1), "/", &urlPathArr, false );
+    }
+    else
+    {
+        winux::StrSplit( path, "/", &urlPathArr, false );
+    }
+
+    urlPathArr.insert( urlPathArr.begin(), "" );
+
+    // 记下每一个部分
+    for ( size_t i = 0; i < urlPathArr.size(); i++ )
+    {
+        if ( i >= _crossRouter.size() ) _crossRouter.emplace_back();
+
+        auto & subPathRouter = _crossRouter[i];
+
+        if ( i == urlPathArr.size() - 1 )
+        {
+            subPathRouter[ urlPathArr[i] ][method] = handler;
+        }
+        else
+        {
+            subPathRouter[ urlPathArr[i] ];
+        }
+    }
+
+}
+
+void HttpServer::setRouteHandler( winux::String const & method, winux::String const & path, RouteHandlerFunction handler )
+{
+    _router[path][method] = handler;
 }
 
 }
