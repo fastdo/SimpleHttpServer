@@ -7,6 +7,7 @@
 #include "v2_HttpRequest.hpp"
 #include "v2_HttpOutputMgr.hpp"
 #include "v2_HttpClientCtx.hpp"
+#include "fcgiserv.hpp"
 
 namespace v2
 {
@@ -18,6 +19,10 @@ int startup()
 {
     SocketLib initSock;
 
+    xAppServerData myAppServerData;
+    myAppServerData.fcgiservPath = GetExecutablePath();
+    myAppServerData.pid = GetCurrentProcessId();
+
     ConfigureSettings cfg;
     String exeFile;
     cfg["$ExeDirPath"] = FilePath( GetExecutablePath(), &exeFile );
@@ -28,7 +33,9 @@ int startup()
 
     ColorOutputLine( fgYellow, cfg.val().myJson( true, "  ", "\n" ) );
 
-    HttpApp app{cfg};
+
+
+    HttpApp app{ cfg, &myAppServerData };
 
     app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
         eienwebx::Request & REQ = RSP.request;
@@ -61,7 +68,7 @@ int startup()
         }
     } );
 
-    app.setRouteHandler( "POST", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
+    app.setRouteHandler( "*", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
         eienwebx::Request & REQ = RSP.request;
         eienwebx::App & APP = *REQ.app;
 
@@ -75,21 +82,21 @@ int startup()
         RSP << APP.dumpEnv() << endl;
     } );
 
-    /*auto fn = [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::App & APP, eienwebx::Request & REQ, eienwebx::Response & RSP, winux::StringArray const & urlPathArr, size_t i ) -> bool {
-        cout << Mixed(urlPathArr[i]).myJson() << endl;
+    /*auto fn = [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP, winux::StringArray const & urlPathPartArr, size_t i ) -> bool {
+        cout << Mixed(urlPathPartArr[i]).myJson() << endl;
         RSP
-            << "<div>" << Mixed(urlPathArr[i]).myJson()
-            << ", " << Mixed( StrJoinEx( "/", urlPathArr, i + 1 ) ).myJson()
+            << "<div>" << Mixed(urlPathPartArr[i]).myJson()
+            << ", " << Mixed( StrJoinEx( "/", urlPathPartArr, i + 1 ) ).myJson()
             << "</div>\n";
         return true;
     };
 
-    //app.setCrossRouteHandler( "*", "/", fn );
+    app.setCrossRouteHandler( "*", "/", fn );
     app.setCrossRouteHandler( "*", "/testdir", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index/abc", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz/123", fn );*/
+    //app.setCrossRouteHandler( "*", "/testdir/index", fn );
+    //app.setCrossRouteHandler( "*", "/testdir/index/abc", fn );
+    //app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz/123", fn );//*/
 
 
     return app.run(nullptr);

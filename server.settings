@@ -2,7 +2,7 @@
 # $WorkDirPath是外部变量，表示工作目录路径
 
 # 是否以产品模式运行
-ProductionMode no;
+ProductionMode yes;
 
 # Sessions 保存路径
 SessionsPath ($ExeDirPath + '/sessions');
@@ -45,6 +45,7 @@ server {
 site {
     # 文档根目录
     document_root ($WorkDirPath + '/wwwroot');
+    #document_root J:\wwwroot;
     # 文档首页
     document_index index.html index.do;
 

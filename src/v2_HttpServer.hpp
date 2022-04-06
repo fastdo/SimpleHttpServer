@@ -17,7 +17,7 @@ class HttpServer : public Server
 
 public:
     // 过径路由处理函数类型
-    using CrossRouteHandlerFunction = std::function< bool ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP, winux::StringArray const & urlPathArr, size_t i ) >;
+    using CrossRouteHandlerFunction = std::function< bool ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP, winux::StringArray const & urlPathPartArr, size_t i ) >;
     // 终点路由处理函数类型
     using RouteHandlerFunction = std::function< void ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) >;
 
@@ -62,10 +62,7 @@ protected:
     // 路由处理器
     // 过径路由器
     /*
-        [
-            { subpath: { GET: handleGet, POST: handlePost, ... }, ... },
-            ...
-        ]
+        [ { pathpart: { GET: handleGet, POST: handlePost, ... }, ... }, ... ]
      */
     std::vector< std::unordered_map< winux::String, std::unordered_map< winux::String, CrossRouteHandlerFunction > > > _crossRouter;
     // 普通路由器
