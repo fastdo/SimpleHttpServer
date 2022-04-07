@@ -30,10 +30,8 @@ int startup()
     cfg.load("server.settings");
 
     HttpServerConfig hcp{cfg};
-
-    ColorOutputLine( fgYellow, cfg.val().myJson( true, "  ", "\n" ) );
-
-
+    // 输出配置信息
+    ColorOutputLine( fgYellow, cfg.val().myJson( true, "    ", "\n" ) );
 
     HttpApp app{ cfg, &myAppServerData };
 
@@ -68,7 +66,7 @@ int startup()
         }
     } );
 
-    app.setRouteHandler( "*", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
+    /*app.setRouteHandler( "GET,POST", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
         eienwebx::Request & REQ = RSP.request;
         eienwebx::App & APP = *REQ.app;
 
@@ -82,20 +80,20 @@ int startup()
         RSP << APP.dumpEnv() << endl;
     } );
 
-    /*auto fn = [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP, winux::StringArray const & urlPathPartArr, size_t i ) -> bool {
-        cout << Mixed(urlPathPartArr[i]).myJson() << endl;
-        RSP
-            << "<div>" << Mixed(urlPathPartArr[i]).myJson()
-            << ", " << Mixed( StrJoinEx( "/", urlPathPartArr, i + 1 ) ).myJson()
-            << "</div>\n";
+    auto fn = [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP, winux::StringArray const & urlPathPartArr, size_t i ) -> bool {
+        cout << Mixed(urlPathPartArr[i]).myJson() << ", " << Mixed( StrJoinEx( "/", urlPathPartArr, i + 1 ) ).myJson() << endl;
+        //RSP
+        //    << "<div>" << Mixed(urlPathPartArr[i]).myJson()
+        //    << ", " << Mixed( StrJoinEx( "/", urlPathPartArr, i + 1 ) ).myJson()
+        //    << "</div>\n";
         return true;
     };
 
     app.setCrossRouteHandler( "*", "/", fn );
     app.setCrossRouteHandler( "*", "/testdir", fn );
-    //app.setCrossRouteHandler( "*", "/testdir/index", fn );
-    //app.setCrossRouteHandler( "*", "/testdir/index/abc", fn );
-    //app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index/abc", fn );
+    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz", fn );
     app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz/123", fn );//*/
 
 

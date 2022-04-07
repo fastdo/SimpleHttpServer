@@ -40,7 +40,8 @@ public:
         int backlog = 0,
         double serverWait = 0.02,
         double verboseInterval = 1.0,
-        bool verbose = true
+        bool verbose = true,
+        int cacheLifeTime = 86400
     );
 
     /** \brief 注册过径路由处理器 method可以是*表示通配所有HTTP方法，path需以/开头 */
@@ -58,6 +59,8 @@ protected:
 
     // 应用程序对象指针
     HttpApp * _app;
+    // 静态文件缓存
+    eiennet::StaticFileMemoryCache _staticFileCache;
 
     // 路由处理器
     // 过径路由器

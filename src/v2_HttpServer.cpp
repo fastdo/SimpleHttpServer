@@ -15,7 +15,8 @@ namespace v2
 HttpServer::HttpServer( HttpApp * app, HttpServerConfig const & httpConfig ) :
     Server(),
     config(httpConfig),
-    _app(app)
+    _app(app),
+    _staticFileCache(httpConfig.cacheLifeTime)
 {
 
 }
@@ -27,11 +28,13 @@ HttpServer::HttpServer(
     int backlog,
     double serverWait,
     double verboseInterval,
-    bool verbose
+    bool verbose,
+    int cacheLifeTime
 ) :
     Server( ep, threadCount, backlog, serverWait, verboseInterval, verbose ),
     config(app->settings),
-    _app(app)
+    _app(app),
+    _staticFileCache(cacheLifeTime)
 {
 
 }
@@ -505,9 +508,12 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
         }
         else // 在普通路由里没有找到处理器
         {
-            bool found = isFile; // 是否找到文件
             winux::String fullPath;
-            if ( !isFile )
+            if ( isFile ) // 是文件
+            {
+                fullPath = request.environVars["SCRIPT_FILENAME"];
+            }
+            else // 不是文件
             {
                 winux::FileTitle( urlPathPartArr[iEndUrlPath], &extName );
                 if ( extName == "" ) // 不是文件，并且没有扩展名，接上documentIndex
@@ -518,18 +524,14 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
                         fullPath = winux::CombinePath( this->config.documentRoot + urlPath, indexFileName );
                         if ( winux::DetectPath(fullPath) )
                         {
-                            found = true;
+                            isFile = true;
                             break;
                         }
                     }
                 }
             }
-            else // 是文件
-            {
-                fullPath = request.environVars["SCRIPT_FILENAME"];
-            }
 
-            if ( found )
+            if ( isFile )
             {
                 if ( extName == "do" )
                 {
@@ -540,11 +542,27 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
                 else
                 {
                     // 静态文件
-                    winux::Buffer data = winux::FileGetContentsEx( fullPath, false );
-                    rsp.header["Content-Type"] = this->config.getMime(extName);
-                    rsp.write(data);
+                    if ( _staticFileCache.hasCache(fullPath) )
+                    {
+                        auto const & cacheItem = _staticFileCache.get(fullPath);
 
-                    //winux::ColorOutputLine( winux::fgFuchsia, "Static file=", fullPath, ", size:", data.getSize() );
+                        rsp.header["Content-Type"] = cacheItem.mime;
+                        rsp.write(cacheItem.content);
+
+                        if ( this->_verbose )
+                            winux::ColorOutputLine( winux::fgAqua, "读取到了缓存`", fullPath, "`" );
+                    }
+                    else
+                    {
+                        auto & cacheItem = _staticFileCache.writeCache( fullPath, this->config.getMime(extName), winux::FileGetContentsEx( fullPath, false ) );
+
+                        rsp.header["Content-Type"] = cacheItem.mime;
+                        rsp.write(cacheItem.content);
+
+                        if ( this->_verbose )
+                            winux::ColorOutputLine( winux::fgAqua, "读取到了文件`", fullPath, "`" );
+                        //winux::ColorOutputLine( winux::fgFuchsia, "Static file=", fullPath, ", size:", data.getSize() );
+                    }
                 }
             }
             else
@@ -573,32 +591,35 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
 
 void HttpServer::setCrossRouteHandler( winux::String const & method, winux::String const & path, CrossRouteHandlerFunction handler )
 {
-    winux::StringArray urlPathArr;
+    winux::StringArray urlPathPartArr;
     if ( path.length() > 0 && path[0] == '/' )
     {
-        winux::StrSplit( path.substr(1), "/", &urlPathArr, false );
+        winux::StrSplit( path.substr(1), "/", &urlPathPartArr, false );
     }
     else
     {
-        winux::StrSplit( path, "/", &urlPathArr, false );
+        winux::StrSplit( path, "/", &urlPathPartArr, false );
     }
 
-    urlPathArr.insert( urlPathArr.begin(), "" );
+    urlPathPartArr.insert( urlPathPartArr.begin(), "" );
 
     // 记下每一个部分
-    for ( size_t i = 0; i < urlPathArr.size(); i++ )
+    for ( size_t i = 0; i < urlPathPartArr.size(); i++ )
     {
         if ( i >= _crossRouter.size() ) _crossRouter.emplace_back();
 
-        auto & subPathRouter = _crossRouter[i];
+        auto & pathPartMap = _crossRouter[i];
 
-        if ( i == urlPathArr.size() - 1 )
+        auto & methodMap = pathPartMap[ urlPathPartArr[i] ];
+
+        if ( i == urlPathPartArr.size() - 1 )
         {
-            subPathRouter[ urlPathArr[i] ][method] = handler;
-        }
-        else
-        {
-            subPathRouter[ urlPathArr[i] ];
+            winux::StringArray methodArr;
+            winux::StrSplit( method, ",", &methodArr, false );
+            for ( auto & m : methodArr )
+            {
+                methodMap[m] = handler;
+            }
         }
     }
 
@@ -606,7 +627,14 @@ void HttpServer::setCrossRouteHandler( winux::String const & method, winux::Stri
 
 void HttpServer::setRouteHandler( winux::String const & method, winux::String const & path, RouteHandlerFunction handler )
 {
-    _router[path][method] = handler;
+    auto & methodMap = _router[path];
+
+    winux::StringArray methodArr;
+    winux::StrSplit( method, ",", &methodArr, false );
+    for ( auto & m : methodArr )
+    {
+        methodMap[m] = handler;
+    }
 }
 
 }
