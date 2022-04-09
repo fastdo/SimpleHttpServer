@@ -33,7 +33,15 @@ int startup()
     // 输出配置信息
     ColorOutputLine( fgYellow, cfg.val().myJson( true, "    ", "\n" ) );
 
+    String sessionsSavePath = cfg.get("SessionsPath");
+    // 确保路径存在
+    winux::MakeDirExists(sessionsSavePath);
+    // 文件式session服务,构造参数为一个session文件存储路径
+    eienwebx::FileSessionServer sessServ{ sessionsSavePath };
+
     HttpApp app{ cfg, &myAppServerData };
+
+    app.setSessServ(&sessServ);
 
     app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
         eienwebx::Request & REQ = RSP.request;

@@ -14,7 +14,7 @@ namespace v2
 HttpClientCtx::HttpClientCtx( HttpApp * app, winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr ) :
     ClientCtx(clientId, clientEpStr, clientSockPtr),
     url(http::Url::urlSimple),
-    request(app),
+    request( app, this ),
     curRecvType(drtRequestHeader),
     hasHeader(false),
     requestContentLength(0L)

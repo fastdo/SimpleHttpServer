@@ -19,6 +19,8 @@ public:
     /** \brief 注册普通路由处理器 method可以是*表示通配所有HTTP方法，path需以/开头 */
     void setRouteHandler( winux::String const & method, winux::String const & path, HttpServer::RouteHandlerFunction handler ) { _server.setRouteHandler( method, path, handler ); }
 
+    /** \brief 暴露HttpServer对象 */
+    HttpServer & getServer() { return _server; }
 protected:
     HttpServer _server;
 

@@ -172,195 +172,6 @@ winux::AnsiString StrTruncateAndTextualize( winux::AnsiString const & content, s
     return r;
 }
 
-static void __ProcessMultipartFormData( char const * buf, winux::ulong size, winux::String const & boundary, http::Vars * post )
-{
-    winux::String sep = "--" + boundary; // separator
-    std::vector<int> sepNextVal = winux::KmpCalcNext( sep.c_str(), (int)sep.length() );
-    int start = 0;
-    int pos = winux::KmpMatchEx( buf, size, sep.c_str(), (int)sep.length(), start, sepNextVal );
-    if ( pos != -1 ) // first separator is found
-    {
-        start = pos + (int)sep.length();
-        sep = "\r\n--" + boundary;
-        sepNextVal = winux::KmpCalcNext( sep.c_str(), (int)sep.length() );
-
-        while ( ( pos = winux::KmpMatchEx( buf, size, sep.c_str(), (int)sep.length(), start, sepNextVal ) ) != -1 )
-        {
-            int skipN = 2; // \r\n
-            winux::AnsiString data( buf + skipN + start, ( pos - start ) - skipN ); // buf + 2 for skip \r\n
-
-            ////////////////////////////////////////////////////////////////////
-            winux::AnsiString nlnl = "\r\n\r\n";
-            int posBody = winux::KmpMatch( data.c_str(), (int)data.length(), nlnl.c_str(), (int)nlnl.length(), 0 );
-            if ( posBody != -1 )
-            {
-                winux::String headerStr = data.substr( 0, posBody );
-
-                char const * body = data.c_str() + posBody + nlnl.length();
-                int bodySize = (int)data.length() - posBody - (int)nlnl.length();
-
-                http::Header header; // 头部
-                header.parse(headerStr);
-
-                http::Header::ContentDisposition cttDpn;
-                header.get( "Content-Disposition", &cttDpn );
-                if ( cttDpn.hasOption("filename") ) // 含有filename是上传文件
-                {
-                    winux::String filename = cttDpn.getOption("filename");
-                    winux::Mixed v; // 将其组成一个map作为post变量
-                    v.createCollection();
-                    v["name"] = filename;
-                    v["size"] = bodySize;
-                    v["mime"] = header["Content-Type"];
-
-                    if ( !filename.empty() )
-                    {
-                        winux::SimpleHandle<char*> tmpPath( _tempnam( "", "upload_" ), (char*)NULL, free );
-                        v["path"] = tmpPath.get(); // 临时文件路径
-                        winux::File f( tmpPath.get(), "wb" ); // 将上传的内容存入临时文件
-                        f.write( body, bodySize );
-                    }
-                    else
-                    {
-                        v["path"] = ""; // 临时文件路径
-                    }
-
-                    (*post)[ cttDpn.getOption("name") ] = v;
-                }
-                else // 是普通Post变量
-                {
-                    winux::String varVal;
-                    varVal.resize( bodySize + 1 );
-                    memcpy( &varVal[0], body, bodySize );
-                    (*post)[ cttDpn.getOption("name") ] = varVal.c_str();
-                }
-            }
-            ////////////////////////////////////////////////////////////////////
-            start = pos + (int)sep.length();
-        }
-    }
-}
-
-// 拆解URL路径部分字符串为urlPath和requestPathInfo，以含扩展名的部分作分隔
-void ProcessUrlPathOld( winux::String const & urlPathRaw, winux::String const & documentRootDir, winux::StringArray * urlPathArr, size_t * iEndUrlPath, winux::String * urlPath, winux::String * requestPathInfo, winux::String * extName )
-{
-    // url路径，子路径数组
-    winux::StrSplit( urlPathRaw, "/", urlPathArr, false );
-
-    urlPathArr->insert( urlPathArr->begin(), "" );
-    *iEndUrlPath = 0;
-
-    if ( urlPathArr->size() > 1 )
-    {
-        size_t i = 1;
-        while ( i < urlPathArr->size() )
-        {
-            winux::String & comp = (*urlPathArr)[i];
-            *urlPath += "/" + comp;
-            *iEndUrlPath = i;
-
-            winux::FileTitle( comp, extName );
-
-            i++;
-
-            if ( !extName->empty() )
-                break;
-        }
-
-        while ( i < urlPathArr->size() )
-        {
-            winux::String & comp = (*urlPathArr)[i];
-            *requestPathInfo += "/" + comp;
-
-            if ( extName->empty() )
-                *iEndUrlPath = i;
-
-            i++;
-        }
-    }
-    else
-    {
-        *urlPath += "/";
-    }
-}
-
-// 根据文档根目录内实际文件，拆解URL路径部分字符串为urlPath和requestPathInfo
-void ProcessUrlPath(
-    winux::String const & urlRawPathStr,
-    winux::String const & documentRootDir,
-    winux::StringArray * urlPathPartArr,
-    size_t * iEndUrlPath,
-    winux::String * urlPath,
-    winux::String * requestPathInfo,
-    winux::String * extName,
-    bool * isFile
-)
-{
-    // url路径，子路径数组
-    winux::StrSplit( urlRawPathStr, "/", urlPathPartArr, false );
-
-    urlPathPartArr->insert( urlPathPartArr->begin(), "" );
-    *iEndUrlPath = 0;
-
-    if ( urlPathPartArr->size() > 1 )
-    {
-        // 求urlPath和PATH_INFO：一层层路径判断，如果找到存在的文件，则说明后续的/...是PATH_INFO，如果是文件夹，则进行下一级判断，如果路径不存在，则当成urlPath。
-        winux::String tmpPath;
-        size_t i = 1;
-
-        while ( i < urlPathPartArr->size() )
-        {
-            winux::String & comp = (*urlPathPartArr)[i];
-
-            tmpPath += "/" + comp;
-            *iEndUrlPath = i;
-
-            bool isDir = false;
-            if ( winux::DetectPath( documentRootDir + winux::DirSep + tmpPath, &isDir ) )
-            {
-                if ( isDir )
-                {
-                    *urlPath = tmpPath;
-                    i++;
-                }
-                else
-                {
-                    winux::FileTitle( comp, extName );
-
-                    *urlPath = tmpPath;
-                    i++;
-                    *isFile = true;
-                    break;
-                }
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        while ( i < urlPathPartArr->size() )
-        {
-            winux::String & comp = (*urlPathPartArr)[i];
-
-            if ( !*isFile )
-            {
-                *urlPath += "/" + comp;
-                *iEndUrlPath = i;
-            }
-            else
-            {
-                *requestPathInfo += "/" + comp;
-            }
-            i++;
-        }
-    }
-    else
-    {
-        *urlPath += "/";
-    }
-}
-
 // 收到一个请求
 void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body )
 {
@@ -370,72 +181,11 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
         winux::ColorOutputLine( winux::fgYellow, httpClientCtxPtr->getStamp(), "\n", hdrStr, "body(bytes:", body.size(), ")\n", StrTruncateAndTextualize(body,256) /*Base64Encode(body)*/ );
     }
 
-    // 解析URL信息
-    http::Url & url = httpClientCtxPtr->url;
-    url.clear();
-    url.parse( header.getUrl(), false, true, true, true, true );
-
-    // 应该处理GET/POST/COOKIES/ENVIRON
     HttpRequest & request = httpClientCtxPtr->request;
 
-    // 清空原先数据
-    request.environVars.clear();
-    request.cookies.clear();
-    request.get.clear();
-    request.post.clear();
-
-    // 记下REQUEST_URI
-    request.environVars["REQUEST_URI"] = header.getUrl();
-
-    // 解析cookies
-    request.cookies.loadCookies( header.getHeader("Cookie") );
-    // 解析get querystring
-    request.get.parse( url.getRawQueryStr() );
-    // 解析POST变量
-    http::Header::ContentType ct;
-    // 取得请求体类型
-    if ( header.get( "Content-Type", &ct ) )
-    {
-        winux::String contentMimeType = ct.getMimeType();
-        if ( contentMimeType == "application/x-www-form-urlencoded" )
-        {
-            request.post.parse(body);
-        }
-        else if ( contentMimeType == "multipart/form-data" )
-        {
-            __ProcessMultipartFormData( body.c_str(), (winux::ulong)body.size(), ct.getBoundary(), &request.post );
-        }
-    }
-
-    // 拆解路径部分信息（如果路径信息包含具体文件，之后的信息会当作PATH_INFO，否则全为urlPath）
-    winux::String urlRawPathStr = url.getPath();
-    request.environVars["ORIG_PATH_INFO"] = "/" + urlRawPathStr;
-
-    winux::String urlPath; // URL路径，会以/开头
-    winux::StringArray urlPathPartArr; // 分割urlRawPathStr，第一个元素始终是空串，表示起始根路径
-    size_t iEndUrlPath; // 停止在urlPath所达到的那个部分的索引
-    winux::String requestPathInfo; // PATH_INFO
-    winux::String extName; // 扩展名
-    bool isFile = false; // 是否为文件。由于扩展名可能是空，所以增加这个变量表示urlPath是否是文件
-    ProcessUrlPath( urlRawPathStr, this->config.documentRoot, &urlPathPartArr, &iEndUrlPath, &urlPath, &requestPathInfo, &extName, &isFile );
-
-    //winux::Mixed info;
-    //info.addPair()
-    //    ( "urlPath", urlPath )
-    //    ( "urlPathPartArr", urlPathPartArr )
-    //    ( "iEndUrlPath", iEndUrlPath )
-    //    ( "requestPathInfo", requestPathInfo )
-    //    ( "extName", extName )
-    //    ( "isFile", isFile )
-    //;
-    //winux::ColorOutputLine( winux::fgGreen, info.myJson(true, "  ", "\n") );
-
-    // 记下环境变量
-    request.environVars["DOCUMENT_ROOT"] = this->config.documentRoot;
-    request.environVars["SCRIPT_FILENAME"] = this->config.documentRoot + urlPath;
-    request.environVars["URL_PATH"] = request.environVars["SCRIPT_NAME"] = urlPath;
-    request.environVars["PATH_INFO"] = requestPathInfo;
-
+    // 处理请求数据
+    HttpRequest::PerRequestData reqData;
+    request.processData(&reqData);
 
     // 响应处理，首先判断路由响应处理器，其次判断do文件，最后判断静态文件，如果都没有则则404。
     if ( true )
@@ -447,20 +197,20 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
 
         // 路由处理，有两种路由处理，一种是过径路由，一种是普通路由
         // 过径路由是指URLPATH包含这个路径，这个路径注册的处理器会被调用，并且继续下去，直至找不到、或达到路径终止索引、或处理器返回false。
-        for ( size_t i = 0; i < urlPathPartArr.size(); i++ )
+        for ( size_t i = 0; i < reqData.urlPathPartArr.size(); i++ )
         {
             if ( i < _crossRouter.size() )
             {
                 auto & pathPartMap = _crossRouter[i];
-                if ( pathPartMap.find( urlPathPartArr[i] ) != pathPartMap.end() )
+                if ( pathPartMap.find( reqData.urlPathPartArr[i] ) != pathPartMap.end() )
                 {
-                    auto & methodMap = pathPartMap[ urlPathPartArr[i] ];
+                    auto & methodMap = pathPartMap[ reqData.urlPathPartArr[i] ];
 
                     if ( methodMap.find( header.getMethod() ) != methodMap.end() )
                     {
                         if ( methodMap[ header.getMethod() ] )
                         {
-                            if ( !methodMap[ header.getMethod() ]( httpClientCtxPtr, rsp, urlPathPartArr, i ) )
+                            if ( !methodMap[ header.getMethod() ]( httpClientCtxPtr, rsp, reqData.urlPathPartArr, i ) )
                                 break;
                         }
                     }
@@ -468,12 +218,12 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
                     {
                         if ( methodMap["*"] )
                         {
-                            if ( !methodMap["*"]( httpClientCtxPtr, rsp, urlPathPartArr, i ) )
+                            if ( !methodMap["*"]( httpClientCtxPtr, rsp, reqData.urlPathPartArr, i ) )
                                 break;
                         }
                     }
 
-                    if ( i == iEndUrlPath )
+                    if ( i == reqData.iEndUrlPath )
                     {
                         break;
                     }
@@ -490,9 +240,9 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
         }
 
         // 普通路由是指调用URLPATH这个路径注册的处理器
-        if ( _router.find(urlPath) != _router.end() )
+        if ( _router.find(reqData.urlPath) != _router.end() )
         {
-            auto & methodMap = _router[urlPath];
+            auto & methodMap = _router[reqData.urlPath];
             if ( methodMap.find( header.getMethod() ) != methodMap.end() )
             {
                 methodMap[ header.getMethod() ]( httpClientCtxPtr, rsp );
@@ -509,31 +259,36 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
         else // 在普通路由里没有找到处理器
         {
             winux::String fullPath;
-            if ( isFile ) // 是文件
+            if ( reqData.isFile ) // 是文件
             {
                 fullPath = request.environVars["SCRIPT_FILENAME"];
             }
-            else // 不是文件
+            else if ( reqData.isExist ) // 不是文件，但路径存在
             {
-                winux::FileTitle( urlPathPartArr[iEndUrlPath], &extName );
-                if ( extName == "" ) // 不是文件，并且没有扩展名，接上documentIndex
+                if ( reqData.urlPathPartArr[reqData.iEndUrlPath].empty() )
                 {
                     for ( auto const & indexFileName : this->config.documentIndex )
                     {
-                        winux::FileTitle( indexFileName, &extName );
-                        fullPath = winux::CombinePath( this->config.documentRoot + urlPath, indexFileName );
+                        winux::FileTitle( indexFileName, &reqData.extName );
+                        fullPath = winux::CombinePath( this->config.documentRoot + reqData.urlPath, indexFileName );
                         if ( winux::DetectPath(fullPath) )
                         {
-                            isFile = true;
+                            reqData.isFile = true;
                             break;
                         }
                     }
                 }
+                else
+                {
+                    rsp.header.setStatusCode("301").setStatusStr("Moved Permanently");
+                    rsp.header["Location"] = winux::PathNoSep(reqData.urlPath) + "/";
+                    goto END_ROUTE;
+                }
             }
 
-            if ( isFile )
+            if ( reqData.isFile )
             {
-                if ( extName == "do" )
+                if ( reqData.extName == "do" )
                 {
                     // 执行do文件
                     int rc;
@@ -554,7 +309,7 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
                     }
                     else
                     {
-                        auto & cacheItem = _staticFileCache.writeCache( fullPath, this->config.getMime(extName), winux::FileGetContentsEx( fullPath, false ) );
+                        auto & cacheItem = _staticFileCache.writeCache( fullPath, this->config.getMime(reqData.extName), winux::FileGetContentsEx( fullPath, false ) );
 
                         rsp.header["Content-Type"] = cacheItem.mime;
                         rsp.write(cacheItem.content);
@@ -574,7 +329,7 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
         }
         //*/
     }
-
+END_ROUTE:
     // 检测Connection是否保活
     if ( winux::StrLower(header["Connection"]) != "keep-alive" ) // 连接不保活
     {
