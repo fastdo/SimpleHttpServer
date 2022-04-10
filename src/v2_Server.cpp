@@ -7,7 +7,7 @@ namespace v2
 {
 
 Server::Server() :
-    //_mtxServer(true),
+    _mtxServer(true),
     _cumulativeClientId(0),
     _stop(false),
     _serverWait(0.02),
@@ -18,7 +18,7 @@ Server::Server() :
 }
 
 Server::Server( eiennet::ip::EndPoint const & ep, int threadCount, int backlog, double serverWait, double verboseInterval, bool verbose ) :
-    //_mtxServer(true),
+    _mtxServer(true),
     _cumulativeClientId(0),
     _stop(false),
     _serverWait(0.02),
@@ -90,9 +90,9 @@ int Server::run()
 
         if ( true )
         {
-            //winux::ScopeGuard guard(this->_mtxServer);
+            winux::ScopeGuard guard(this->_mtxServer);
             // 输出一些服务器状态信息
-            if ( ++counter % static_cast<int>( this->_verboseInterval / this->_serverWait ) == 0 && this->_verbose )
+            if ( this->_verbose && ++counter % static_cast<int>( this->_verboseInterval / this->_serverWait ) == 0 )
             {
                 winux::DateTimeL dtl;
                 winux::ColorOutput(
@@ -145,6 +145,7 @@ int Server::run()
             }
             else if ( sel.hasExceptSock(_servSock) )
             {
+                winux::ScopeGuard guard(this->_mtxServer);
                 _stop = true;
 
                 rc--;
@@ -153,7 +154,7 @@ int Server::run()
             // 分发客户连接的相关IO事件
             if ( rc > 0 )
             {
-                //ScopeGuard guard(this->_mtxServer);
+                winux::ScopeGuard guard(this->_mtxServer);
                 //this->_mtxServer.lock();
 
                 for ( auto it = this->_clients.begin(); it != this->_clients.end(); )
@@ -174,7 +175,6 @@ int Server::run()
                             // 不能用线程池去处理，要直接调用。因为要保证数据接收先后顺序
                             //this->_pool.task( &Server::onClientDataArrived, this, it->second, std::move(data) ).post();
                             this->onClientDataArrived( it->second, std::move(data) );
-
                         }
                         else // arrivedSize <= 0
                         {
@@ -224,18 +224,19 @@ int Server::run()
 
 void Server::stop( bool b )
 {
+    winux::ScopeGuard guard(_mtxServer);
     static_cast<volatile bool &>(_stop) = b;
 }
 
 size_t Server::getClientsCount() const
 {
-    //winux::ScopeGuard guard(const_cast<winux::Mutex &>( _mtxServer ));
+    winux::ScopeGuard guard( const_cast<winux::Mutex &>(_mtxServer) );
     return _clients.size();
 }
 
 void Server::removeClient( winux::uint64 clientId )
 {
-    //winux::ScopeGuard guard(_mtxServer);
+    winux::ScopeGuard guard(_mtxServer);
     _clients.erase(clientId);
 }
 
@@ -243,7 +244,7 @@ winux::SharedPointer<ClientCtx> & Server::_addClient( eiennet::ip::EndPoint cons
 {
     winux::SharedPointer<ClientCtx> * client;
     {
-        //winux::ScopeGuard guard(_mtxServer);
+        winux::ScopeGuard guard(_mtxServer);
         ++_cumulativeClientId;
         client = &_clients[_cumulativeClientId];
     }

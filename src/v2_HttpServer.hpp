@@ -9,7 +9,7 @@ class HttpClientCtx;
 class HttpServer : public Server
 {
     // 处理一个WebMain逻辑
-    _DEFINE_EVENT_RELATED(
+    DEFINE_CUSTOM_EVENT(
         WebMain,
         ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ),
         ( httpClientCtxPtr, RSP )

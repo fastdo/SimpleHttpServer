@@ -10,14 +10,14 @@ namespace v2
 class Server
 {
     // 客户数据到达
-    _DEFINE_EVENT_RELATED(
+    DEFINE_CUSTOM_EVENT(
         ClientDataArrived,
         ( winux::SharedPointer<ClientCtx> clientCtxPtr, winux::Buffer data ),
         ( clientCtxPtr, std::move(data) )
     )
 
     // 当创建客户连接对象
-    _DEFINE_EVENT_RETURN_RELATED_EX(
+    DEFINE_CUSTOM_EVENT_RETURN_EX(
         ClientCtx *,
         CreateClient,
         ( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
@@ -66,7 +66,7 @@ protected:
     winux::SharedPointer<ClientCtx> & _addClient( eiennet::ip::EndPoint const & clientEp, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr );
 
     winux::ThreadPool _pool; // 线程池
-    //winux::Mutex _mtxServer; // 互斥量保护服务器共享数据
+    winux::Mutex _mtxServer; // 互斥量保护服务器共享数据
     eiennet::ip::tcp::Socket _servSock; // 服务器监听套接字
     std::map< winux::uint64, winux::SharedPointer<ClientCtx> > _clients; // 客户表
 
