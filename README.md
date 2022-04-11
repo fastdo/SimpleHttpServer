@@ -7,11 +7,11 @@
 #### Windows:
 
 1. 安装 Microsoft Visual C++ 2017 x64
-2. 安装 FastDo v0.6.0+
+2. 安装 FastDo v0.6.1+
 
 #### Linux:
 1. 安装 GCC for C++ 4.8+
-2. 安装 FastDo v0.6.0+
+2. 安装 FastDo v0.6.1+
 
 安装FastDo可以查看官方网站[作为C++库安装](https://fastdo.net/index.do?ps=document&doc_name=install_ascpp)教程。
 

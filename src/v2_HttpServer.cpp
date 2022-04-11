@@ -344,7 +344,7 @@ END_ROUTE:
     httpClientCtxPtr->curRecvType = HttpClientCtx::drtRequestHeader;
 }
 
-void HttpServer::setCrossRouteHandler( winux::String const & method, winux::String const & path, CrossRouteHandlerFunction handler )
+void HttpServer::crossRoute( winux::String const & method, winux::String const & path, CrossRouteHandlerFunction handler )
 {
     winux::StringArray urlPathPartArr;
     if ( path.length() > 0 && path[0] == '/' )
@@ -380,7 +380,7 @@ void HttpServer::setCrossRouteHandler( winux::String const & method, winux::Stri
 
 }
 
-void HttpServer::setRouteHandler( winux::String const & method, winux::String const & path, RouteHandlerFunction handler )
+void HttpServer::route( winux::String const & method, winux::String const & path, RouteHandlerFunction handler )
 {
     auto & methodMap = _router[path];
 

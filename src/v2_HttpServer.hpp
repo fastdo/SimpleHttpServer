@@ -45,10 +45,10 @@ public:
     );
 
     /** \brief 注册过径路由处理器 method可以是*表示通配所有HTTP方法，path需以/开头 */
-    void setCrossRouteHandler( winux::String const & method, winux::String const & path, CrossRouteHandlerFunction handler );
+    void crossRoute( winux::String const & method, winux::String const & path, CrossRouteHandlerFunction handler );
 
     /** \brief 注册普通路由处理器 method可以是*表示通配所有HTTP方法，path需以/开头 */
-    void setRouteHandler( winux::String const & method, winux::String const & path, RouteHandlerFunction handler );
+    void route( winux::String const & method, winux::String const & path, RouteHandlerFunction handler );
 
     /** \brief HTTP服务器配置对象 */
     HttpServerConfig config;

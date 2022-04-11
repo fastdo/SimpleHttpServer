@@ -74,7 +74,7 @@ int startup()
         }
     } );
 
-    /*app.setRouteHandler( "GET,POST", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
+    /*app.route( "GET,POST", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
         eienwebx::Request & REQ = RSP.request;
         eienwebx::App & APP = *REQ.app;
 
@@ -97,12 +97,12 @@ int startup()
         return true;
     };
 
-    app.setCrossRouteHandler( "*", "/", fn );
-    app.setCrossRouteHandler( "*", "/testdir", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index/abc", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz", fn );
-    app.setCrossRouteHandler( "*", "/testdir/index/abc/xyz/123", fn );//*/
+    app.crossRoute( "*", "/", fn );
+    app.crossRoute( "*", "/testdir", fn );
+    app.crossRoute( "*", "/testdir/index", fn );
+    app.crossRoute( "*", "/testdir/index/abc", fn );
+    app.crossRoute( "*", "/testdir/index/abc/xyz", fn );
+    app.crossRoute( "*", "/testdir/index/abc/xyz/123", fn );//*/
 
 
     return app.run(nullptr);
