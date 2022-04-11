@@ -29,21 +29,20 @@ int startup()
     cfg["$WorkDirPath"] = ( RealPath("") );
     cfg.load("server.settings");
 
-    HttpServerConfig hcp{cfg};
     // 输出配置信息
     ColorOutputLine( fgYellow, cfg.val().myJson( true, "    ", "\n" ) );
+
+    // 创建App
+    HttpApp app{ cfg, &myAppServerData };
 
     String sessionsSavePath = cfg.get("SessionsPath");
     // 确保路径存在
     winux::MakeDirExists(sessionsSavePath);
     // 文件式session服务,构造参数为一个session文件存储路径
     eienwebx::FileSessionServer sessServ{ sessionsSavePath };
-
-    HttpApp app{ cfg, &myAppServerData };
-
     app.setSessServ(&sessServ);
 
-    app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
+    /*app.onWebMainHandler( [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
         eienwebx::Request & REQ = RSP.request;
         eienwebx::App & APP = *REQ.app;
 
@@ -72,7 +71,7 @@ int startup()
                 RSP << APP.dumpEnv() << endl;
             }
         }
-    } );
+    } );//*/
 
     /*app.route( "GET,POST", "/testdir/index/abc/xyz/123", [] ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) {
         eienwebx::Request & REQ = RSP.request;

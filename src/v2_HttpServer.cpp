@@ -211,7 +211,10 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
                         if ( methodMap[ header.getMethod() ] )
                         {
                             if ( !methodMap[ header.getMethod() ]( httpClientCtxPtr, rsp, reqData.urlPathPartArr, i ) )
-                                break;
+                            {
+                                //break;
+                                goto END_ROUTE;
+                            }
                         }
                     }
                     else if (  methodMap.find("*") != methodMap.end() )
@@ -219,7 +222,10 @@ void HttpServer::onClientRequestInternal( winux::SharedPointer<HttpClientCtx> ht
                         if ( methodMap["*"] )
                         {
                             if ( !methodMap["*"]( httpClientCtxPtr, rsp, reqData.urlPathPartArr, i ) )
-                                break;
+                            {
+                                //break;
+                                goto END_ROUTE;
+                            }
                         }
                     }
 
