@@ -6,7 +6,7 @@ class HttpApp;
 class HttpClientCtx;
 
 /** \brief HTTP服务器 */
-class HttpServer : public Server
+class HttpServer : public eiennet::Server
 {
     // 处理一个WebMain逻辑
     DEFINE_CUSTOM_EVENT(
@@ -53,9 +53,9 @@ public:
     /** \brief HTTP服务器配置对象 */
     HttpServerConfig config;
 protected:
-    virtual void onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxPtr, winux::Buffer data0 ) override;
+    virtual void onClientDataArrived( winux::SharedPointer<eiennet::ClientCtx> clientCtxPtr, winux::Buffer data0 ) override;
 
-    virtual ClientCtx * onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr ) override;
+    virtual eiennet::ClientCtx * onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr ) override;
 
     // 应用程序对象指针
     HttpApp * _app;

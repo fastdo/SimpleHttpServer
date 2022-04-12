@@ -18,16 +18,10 @@
     <ClCompile Include="src\main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\v2_ClientCtx.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="src\v2_HttpClientCtx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\v2_HttpServer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\v2_Server.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\v2_base.cpp">
@@ -47,16 +41,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\v2_ClientCtx.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\v2_HttpClientCtx.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\v2_HttpServer.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\v2_Server.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\v2_base.hpp">

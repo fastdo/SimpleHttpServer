@@ -1,7 +1,7 @@
 ﻿
 #include "v2_base.hpp"
-#include "v2_ClientCtx.hpp"
-#include "v2_Server.hpp"
+//#include "v2_ClientCtx.hpp"
+//#include "v2_Server.hpp"
 #include "v2_HttpServerConfig.hpp"
 #include "v2_HttpServer.hpp"
 #include "v2_HttpApp.hpp"
@@ -40,7 +40,7 @@ HttpServer::HttpServer(
 }
 
 // 客户数据到达
-void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxPtr, winux::Buffer dataNew )
+void HttpServer::onClientDataArrived( winux::SharedPointer<eiennet::ClientCtx> clientCtxPtr, winux::Buffer dataNew )
 {
     winux::SharedPointer<HttpClientCtx> httpClientCtxPtr = clientCtxPtr.ensureCast<HttpClientCtx>();
     winux::GrowBuffer & data = httpClientCtxPtr->forClient.data;
@@ -145,7 +145,7 @@ void HttpServer::onClientDataArrived( winux::SharedPointer<ClientCtx> clientCtxP
     }
 }
 
-ClientCtx * HttpServer::onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
+eiennet::ClientCtx * HttpServer::onCreateClient( winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr )
 {
     return new HttpClientCtx( _app, clientId, clientEpStr, clientSockPtr );
 }

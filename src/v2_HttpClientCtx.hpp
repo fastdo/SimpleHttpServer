@@ -5,7 +5,7 @@ namespace v2
 class HttpApp;
 
 /** HTTP客户场景 */
-class HttpClientCtx : public ClientCtx
+class HttpClientCtx : public eiennet::ClientCtx
 {
 public:
     HttpClientCtx( HttpApp * app, winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr );
