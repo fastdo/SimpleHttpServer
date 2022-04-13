@@ -18,9 +18,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\v2_HttpClientCtx.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="src\v2_HttpServer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -33,17 +30,14 @@
     <ClCompile Include="src\v2_HttpOutputMgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\v2_HttpRequest.cpp">
+    <ClCompile Include="src\v2_HttpServerConfig.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\v2_HttpServerConfig.cpp">
+    <ClCompile Include="src\v2_HttpRequestCtx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\v2_HttpClientCtx.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\v2_HttpServer.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -56,10 +50,10 @@
     <ClInclude Include="src\v2_HttpOutputMgr.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\v2_HttpRequest.hpp">
+    <ClInclude Include="src\v2_HttpServerConfig.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\v2_HttpServerConfig.hpp">
+    <ClInclude Include="src\v2_HttpRequestCtx.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -25,6 +25,7 @@ protected:
     HttpServer _server;
 
     friend class HttpClientCtx;
+    friend class HttpRequestCtx;
 };
 
 }

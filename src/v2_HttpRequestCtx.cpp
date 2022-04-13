@@ -1,18 +1,30 @@
-﻿#include "v2_base.hpp"
-//#include "v2_ClientCtx.hpp"
-//#include "v2_Server.hpp"
+﻿
+#include "v2_base.hpp"
 #include "v2_HttpServerConfig.hpp"
 #include "v2_HttpServer.hpp"
 #include "v2_HttpApp.hpp"
-#include "v2_HttpRequest.hpp"
-#include "v2_HttpClientCtx.hpp"
+#include "v2_HttpRequestCtx.hpp"
 
 namespace v2
 {
 
-HttpRequest::HttpRequest( HttpApp * app, HttpClientCtx * clientCtx ) : Request(app), _clientCtx(clientCtx)
+HttpRequestCtx::HttpRequestCtx( HttpApp * app, winux::uint64 clientId, winux::String const & clientEpStr, winux::SharedPointer<eiennet::ip::tcp::Socket> clientSockPtr ) :
+    ClientCtx(clientId, clientEpStr, clientSockPtr),
+    Request(app),
+    url(http::Url::urlSimple),
+    curRecvType(drtRequestHeader),
+    hasHeader(false),
+    requestContentLength(0L)
 {
 
+}
+
+HttpRequestCtx::~HttpRequestCtx()
+{
+    if ( static_cast<HttpApp*>(this->app)->_server.config.verbose )
+    {
+        winux::ColorOutputLine( winux::fgBlue, this->getStamp(), "析构" );
+    }
 }
 
 static void __ProcessMultipartFormData( char const * buf, winux::ulong size, winux::String const & boundary, http::Vars * post )
@@ -163,61 +175,58 @@ static void __ProcessUrlPath(
     }
 }
 
-bool HttpRequest::processData( void * data )
+bool HttpRequestCtx::processData( void * data )
 {
-    PerRequestData & reqData = *reinterpret_cast<PerRequestData *>(data);
-    HttpRequest & request = *this;
-
     // 解析URL信息
-    http::Url & url = this->_clientCtx->url;
-    url.clear();
-    url.parse( header.getUrl(), false, true, true, true, true );
+    this->url.clear();
+    this->url.parse( this->header.getUrl(), false, true, true, true, true );
 
     // 服务器配置对象
     HttpServerConfig & serverConfig = static_cast<HttpApp *>(this->app)->getServer().config;
 
     // 应该处理GET/POST/COOKIES/ENVIRON
     // 清空原先数据
-    request.environVars.clear();
-    request.cookies.clear();
-    request.get.clear();
-    request.post.clear();
+    this->environVars.clear();
+    this->cookies.clear();
+    this->get.clear();
+    this->post.clear();
 
     // 拆解路径部分信息（如果路径信息包含具体文件，之后的信息会当作PATH_INFO，否则全为urlPath）
-    winux::String const urlRawPathStr = url.getPath();
+    winux::String const urlRawPathStr = this->url.getPath();
 
+    PerRequestData & reqData = *reinterpret_cast<PerRequestData *>(data);
     winux::String requestPathInfo; // PATH_INFO
     __ProcessUrlPath( urlRawPathStr, serverConfig.documentRoot, &reqData.urlPathPartArr, &reqData.iEndUrlPath, &reqData.urlPath, &requestPathInfo, &reqData.extName, &reqData.isExist, &reqData.isFile );
 
     // 注册一些环境变量
-    request.environVars["ORIG_PATH_INFO"] = "/" + urlRawPathStr;
-    request.environVars["SERVER_SOFTWARE"] = "SimpleHttpServer/1.0";
-    request.environVars["FASTDO_VERSION"] = "0.6.1";
-    request.environVars["REQUEST_URI"] = header.getUrl();
-    if ( header.hasHeader("Referer") ) request.environVars["HTTP_REFERER"] = header["Referer"];
-    request.environVars["DOCUMENT_ROOT"] = serverConfig.documentRoot;
-    request.environVars["SCRIPT_FILENAME"] = serverConfig.documentRoot + reqData.urlPath;
-    //request.environVars["URL_PATH"] = 
-    request.environVars["SCRIPT_NAME"] = reqData.urlPath;
-    request.environVars["PATH_INFO"] = requestPathInfo;
+    this->environVars["ORIG_PATH_INFO"] = "/" + urlRawPathStr;
+    this->environVars["SERVER_SOFTWARE"] = "SimpleHttpServer/1.0";
+    this->environVars["FASTDO_VERSION"] = "0.6.1";
+    this->environVars["REQUEST_URI"] = this->header.getUrl();
+    if ( this->header.hasHeader("Referer") ) this->environVars["HTTP_REFERER"] = this->header["Referer"];
+    this->environVars["DOCUMENT_ROOT"] = serverConfig.documentRoot;
+    this->environVars["SCRIPT_FILENAME"] = serverConfig.documentRoot + reqData.urlPath;
+    //this->environVars["URL_PATH"] = 
+    this->environVars["SCRIPT_NAME"] = reqData.urlPath;
+    this->environVars["PATH_INFO"] = requestPathInfo;
 
     // 解析cookies
-    request.cookies.loadCookies( header.getHeader("Cookie") );
+    this->cookies.loadCookies( this->header.getHeader("Cookie") );
     // 解析get querystring
-    request.get.parse( url.getRawQueryStr() );
+    this->get.parse( this->url.getRawQueryStr() );
     // 解析post
     http::Header::ContentType ct;
     // 取得请求体类型
-    if ( header.get( "Content-Type", &ct ) )
+    if ( this->header.get( "Content-Type", &ct ) )
     {
         winux::String contentMimeType = ct.getMimeType();
         if ( contentMimeType == "application/x-www-form-urlencoded" )
         {
-            request.post.parse(body);
+            this->post.parse(this->body);
         }
         else if ( contentMimeType == "multipart/form-data" )
         {
-            __ProcessMultipartFormData( body.c_str(), (winux::ulong)body.size(), ct.getBoundary(), &request.post );
+            __ProcessMultipartFormData( this->body.c_str(), (winux::ulong)this->body.size(), ct.getBoundary(), &this->post );
         }
     }
 

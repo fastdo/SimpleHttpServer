@@ -3,7 +3,7 @@
 namespace v2
 {
 class HttpApp;
-class HttpClientCtx;
+class HttpRequestCtx;
 
 /** \brief HTTP服务器 */
 class HttpServer : public eiennet::Server
@@ -11,15 +11,15 @@ class HttpServer : public eiennet::Server
     // 处理一个WebMain逻辑
     DEFINE_CUSTOM_EVENT(
         WebMain,
-        ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ),
-        ( httpClientCtxPtr, RSP )
+        ( winux::SharedPointer<HttpRequestCtx> requestCtxPtr, eienwebx::Response & RSP ),
+        ( requestCtxPtr, RSP )
     )
 
 public:
     // 过径路由处理函数类型
-    using CrossRouteHandlerFunction = std::function< bool ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP, winux::StringArray const & urlPathPartArr, size_t i ) >;
+    using CrossRouteHandlerFunction = std::function< bool ( winux::SharedPointer<HttpRequestCtx> requestCtxPtr, eienwebx::Response & RSP, winux::StringArray const & urlPathPartArr, size_t i ) >;
     // 终点路由处理函数类型
-    using RouteHandlerFunction = std::function< void ( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, eienwebx::Response & RSP ) >;
+    using RouteHandlerFunction = std::function< void ( winux::SharedPointer<HttpRequestCtx> requestCtxPtr, eienwebx::Response & RSP ) >;
 
     /** \brief 构造函数1，不会启动服务，必须手动调用startup() */
     HttpServer( HttpApp * app, HttpServerConfig const & httpConfig );
@@ -74,7 +74,7 @@ protected:
      */
     std::unordered_map< winux::String, std::unordered_map< winux::String, RouteHandlerFunction > > _router;
 private:
-    void onClientRequestInternal( winux::SharedPointer<HttpClientCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body );
+    void onClientRequestInternal( winux::SharedPointer<HttpRequestCtx> httpClientCtxPtr, http::Header & header, winux::AnsiString & body );
 };
 
 }
