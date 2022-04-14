@@ -31,7 +31,8 @@ HttpServerConfig::HttpServerConfig( winux::ConfigureSettings const & settings ) 
         { "jpg", "image/jpeg" },
         { "png", "image/png" },
         { "gif", "image/gif" },
-        { "ico", "image/x-icon" }
+        { "ico", "image/x-icon" },
+        { "svg", "image/svg+xml" }
     };
 }
 
@@ -70,7 +71,8 @@ HttpServerConfig::HttpServerConfig(
         { "jpg", "image/jpeg" },
         { "png", "image/png" },
         { "gif", "image/gif" },
-        { "ico", "image/x-icon" }
+        { "ico", "image/x-icon" },
+        { "svg", "image/svg+xml" }
     };
 }
 

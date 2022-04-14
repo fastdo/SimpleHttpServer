@@ -24,7 +24,7 @@
 // 初始化Socket库
 SocketLib initSock;
 // 创建App，App需要传递一个配置对象，可以设置很多选项，一个空配置对象表示全部采用默认值
-HttpApp app{ ConfigureSettings{} };
+HttpApp app{ ConfigureSettings{}, nullptr };
 
 // 注册过径路由，过径路由是指URL只要路过就会触发，并且你可以控制是否继续。
 // 第一个参数表示HTTP方法，"*"表示通配所有HTTP方法，也可以是逗号分隔的方法列表串，如：GET,POST,PUT

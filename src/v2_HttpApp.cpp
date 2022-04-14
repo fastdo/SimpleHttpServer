@@ -37,7 +37,7 @@ HttpApp::HttpApp(
 ) :
     App( settings, servData ),
     Server(),
-    httpConfig(settings, ep, threadCount, backlog, serverWait, verboseInterval, verbose, cacheLifeTime ),
+    httpConfig( settings, ep, threadCount, backlog, serverWait, verboseInterval, verbose, cacheLifeTime ),
     _staticFileCache(httpConfig.cacheLifeTime)
 {
     // 启动服务
