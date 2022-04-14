@@ -169,7 +169,6 @@
     <ClCompile Include="src\v2_HttpRequestCtx.cpp" />
     <ClCompile Include="src\v2_HttpServerConfig.cpp" />
     <ClCompile Include="src\v2_HttpOutputMgr.cpp" />
-    <ClCompile Include="src\v2_HttpServer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\v2_base.hpp" />
@@ -177,7 +176,6 @@
     <ClInclude Include="src\v2_HttpRequestCtx.hpp" />
     <ClInclude Include="src\v2_HttpServerConfig.hpp" />
     <ClInclude Include="src\v2_HttpOutputMgr.hpp" />
-    <ClInclude Include="src\v2_HttpServer.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="server.settings" />

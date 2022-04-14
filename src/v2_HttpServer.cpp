@@ -147,7 +147,7 @@ eiennet::ClientCtx * HttpServer::onCreateClient( winux::uint64 clientId, winux::
 }
 
 // 非文本数据用\xHH显示，如果数据过长则只显示len长度的数据
-winux::AnsiString StrTruncateAndTextualize( winux::AnsiString const & content, size_t len )
+static winux::AnsiString StrTruncateAndTextualize( winux::AnsiString const & content, size_t len )
 {
     winux::AnsiString r;
     for ( auto ch : content )

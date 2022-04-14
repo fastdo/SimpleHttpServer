@@ -1,7 +1,5 @@
-﻿
-#include "v2_base.hpp"
+﻿#include "v2_base.hpp"
 #include "v2_HttpServerConfig.hpp"
-#include "v2_HttpServer.hpp"
 #include "v2_HttpApp.hpp"
 #include "v2_HttpRequestCtx.hpp"
 
@@ -21,7 +19,7 @@ HttpRequestCtx::HttpRequestCtx( HttpApp * app, winux::uint64 clientId, winux::St
 
 HttpRequestCtx::~HttpRequestCtx()
 {
-    if ( static_cast<HttpApp*>(this->app)->_server.config.verbose )
+    if ( static_cast<HttpApp*>(this->app)->httpConfig.verbose )
     {
         winux::ColorOutputLine( winux::fgBlue, this->getStamp(), "析构" );
     }
@@ -182,7 +180,7 @@ bool HttpRequestCtx::processData( void * data )
     this->url.parse( this->header.getUrl(), false, true, true, true, true );
 
     // 服务器配置对象
-    HttpServerConfig & serverConfig = static_cast<HttpApp *>(this->app)->getServer().config;
+    HttpServerConfig & httpConfig = static_cast<HttpApp *>(this->app)->httpConfig;
 
     // 应该处理GET/POST/COOKIES/ENVIRON
     // 清空原先数据
@@ -196,7 +194,7 @@ bool HttpRequestCtx::processData( void * data )
 
     PerRequestData & reqData = *reinterpret_cast<PerRequestData *>(data);
     winux::String requestPathInfo; // PATH_INFO
-    __ProcessUrlPath( urlRawPathStr, serverConfig.documentRoot, &reqData.urlPathPartArr, &reqData.iEndUrlPath, &reqData.urlPath, &requestPathInfo, &reqData.extName, &reqData.isExist, &reqData.isFile );
+    __ProcessUrlPath( urlRawPathStr, httpConfig.documentRoot, &reqData.urlPathPartArr, &reqData.iEndUrlPath, &reqData.urlPath, &requestPathInfo, &reqData.extName, &reqData.isExist, &reqData.isFile );
 
     // 注册一些环境变量
     this->environVars["ORIG_PATH_INFO"] = "/" + urlRawPathStr;
@@ -204,8 +202,8 @@ bool HttpRequestCtx::processData( void * data )
     this->environVars["FASTDO_VERSION"] = "0.6.1";
     this->environVars["REQUEST_URI"] = this->header.getUrl();
     if ( this->header.hasHeader("Referer") ) this->environVars["HTTP_REFERER"] = this->header["Referer"];
-    this->environVars["DOCUMENT_ROOT"] = serverConfig.documentRoot;
-    this->environVars["SCRIPT_FILENAME"] = serverConfig.documentRoot + reqData.urlPath;
+    this->environVars["DOCUMENT_ROOT"] = httpConfig.documentRoot;
+    this->environVars["SCRIPT_FILENAME"] = httpConfig.documentRoot + reqData.urlPath;
     //this->environVars["URL_PATH"] = 
     this->environVars["SCRIPT_NAME"] = reqData.urlPath;
     this->environVars["PATH_INFO"] = requestPathInfo;

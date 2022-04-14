@@ -41,6 +41,18 @@ struct HttpServerConfig
     /** \brief 构造函数1，从配置对象加载参数 */
     HttpServerConfig( winux::ConfigureSettings const & settings );
 
+    /** \brief 构造函数2，从配置对象加载参数，如果没有配置，则默认为指定参数 */
+    HttpServerConfig(
+        winux::ConfigureSettings const & settings,
+        eiennet::ip::EndPoint const & ep,
+        int threadCount = 4,
+        int backlog = 0,
+        double serverWait = 0.02,
+        double verboseInterval = 1.0,
+        bool verbose = true,
+        int cacheLifeTime = 86400
+    );
+
     /** \brief 取得指定扩展名的MIME */
     winux::String getMime( winux::String const & extName ) const;
 
