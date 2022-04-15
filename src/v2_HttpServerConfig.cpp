@@ -21,19 +21,10 @@ HttpServerConfig::HttpServerConfig( winux::ConfigureSettings const & settings ) 
 
     this->documentRoot = settings["site"].get<winux::String>( "document_root", "wwwroot" );
     settings["site"].get("document_index", winux::Mixed().createArray() ).getArray(&this->documentIndex);
+    settings["site"].get("error_pages", winux::Mixed().createCollection() ).getMap(&this->errorPages);
     this->cacheLifeTime = settings["site"].get<int>( "cache_lifetime", 86400 );
 
-    this->mime = {
-        { "html", "text/html" },
-        { "css", "text/css" },
-        { "js", "text/javascript" },
-        { "txt", "text/plain" },
-        { "jpg", "image/jpeg" },
-        { "png", "image/png" },
-        { "gif", "image/gif" },
-        { "ico", "image/x-icon" },
-        { "svg", "image/svg+xml" }
-    };
+    this->initMime();
 }
 
 HttpServerConfig::HttpServerConfig(
@@ -63,6 +54,16 @@ HttpServerConfig::HttpServerConfig(
     settings["site"].get("document_index", winux::Mixed().createArray() ).getArray(&this->documentIndex);
     this->cacheLifeTime = settings["site"].get<int>( "cache_lifetime", cacheLifeTime );
 
+    this->initMime();
+}
+
+winux::String HttpServerConfig::getMime( winux::String const & extName ) const
+{
+    return winux::isset( this->mime, extName ) ? this->mime.at(extName) : "application/octet-stream";
+}
+
+void HttpServerConfig::initMime()
+{
     this->mime = {
         { "html", "text/html" },
         { "css", "text/css" },
@@ -74,11 +75,6 @@ HttpServerConfig::HttpServerConfig(
         { "ico", "image/x-icon" },
         { "svg", "image/svg+xml" }
     };
-}
-
-winux::String HttpServerConfig::getMime( winux::String const & extName ) const
-{
-    return winux::isset( this->mime, extName ) ? this->mime.at(extName) : "application/octet-stream";
 }
 
 }

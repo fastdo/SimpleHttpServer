@@ -32,6 +32,8 @@ struct HttpServerConfig
     winux::String documentRoot;
     /** \brief 文档首页 */
     winux::StringArray documentIndex;
+    /** \brief 错误页 */
+    winux::StringStringMap errorPages;
     /** \brief 静态文件缓存生命期 */
     int cacheLifeTime;
 
@@ -56,6 +58,7 @@ struct HttpServerConfig
     /** \brief 取得指定扩展名的MIME */
     winux::String getMime( winux::String const & extName ) const;
 
+    void initMime();
 };
 
 

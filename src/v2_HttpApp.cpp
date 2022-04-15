@@ -398,6 +398,9 @@ void HttpApp::onClientRequestInternal( winux::SharedPointer<HttpRequestCtx> requ
                 //winux::ColorOutputLine( winux::fgFuchsia, "Static file=", fullPath );
 
                 rsp.header.setResponseLine( "HTTP/1.1 404 Not found", false );
+
+                auto content = winux::FileGetContentsEx( this->httpConfig.errorPages["404"], false );
+                rsp.write(content);
             }
         }
         //*/
