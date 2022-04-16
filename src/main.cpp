@@ -1,5 +1,5 @@
 ﻿#include "v2_base.hpp"
-#include "v2_HttpServerConfig.hpp"
+#include "v2_HttpAppConfig.hpp"
 #include "v2_HttpApp.hpp"
 #include "v2_HttpRequestCtx.hpp"
 #include "v2_HttpOutputMgr.hpp"

@@ -53,7 +53,7 @@ public:
     virtual int run( void * runParam ) override;
 
     /** \brief HTTP服务器配置对象 */
-    HttpServerConfig httpConfig;
+    HttpAppConfig httpConfig;
 
 protected:
     virtual void onClientDataArrived( winux::SharedPointer<eiennet::ClientCtx> clientCtxPtr, winux::Buffer data0 ) override;

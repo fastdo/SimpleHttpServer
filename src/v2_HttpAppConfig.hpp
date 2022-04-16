@@ -3,7 +3,7 @@
 namespace v2
 {
 
-struct HttpServerConfig
+struct HttpAppConfig
 {
     winux::ConfigureSettings const & confSettings;
 
@@ -41,10 +41,10 @@ struct HttpServerConfig
     std::map< winux::String, winux::String > mime; // MIME
 
     /** \brief 构造函数1，从配置对象加载参数 */
-    HttpServerConfig( winux::ConfigureSettings const & settings );
+    HttpAppConfig( winux::ConfigureSettings const & settings );
 
     /** \brief 构造函数2，从配置对象加载参数，如果没有配置，则默认为指定参数 */
-    HttpServerConfig(
+    HttpAppConfig(
         winux::ConfigureSettings const & settings,
         eiennet::ip::EndPoint const & ep,
         int threadCount = 4,

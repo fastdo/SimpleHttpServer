@@ -1,11 +1,11 @@
 ﻿
 #include "v2_base.hpp"
-#include "v2_HttpServerConfig.hpp"
+#include "v2_HttpAppConfig.hpp"
 
 namespace v2
 {
 
-HttpServerConfig::HttpServerConfig( winux::ConfigureSettings const & settings ) :
+HttpAppConfig::HttpAppConfig( winux::ConfigureSettings const & settings ) :
     confSettings(settings)
 {
     this->serverName = settings["server"].get<winux::String>( "server_name", "" );
@@ -27,7 +27,7 @@ HttpServerConfig::HttpServerConfig( winux::ConfigureSettings const & settings ) 
     this->initMime();
 }
 
-HttpServerConfig::HttpServerConfig(
+HttpAppConfig::HttpAppConfig(
     winux::ConfigureSettings const & settings,
     eiennet::ip::EndPoint const & ep,
     int threadCount,
@@ -57,12 +57,12 @@ HttpServerConfig::HttpServerConfig(
     this->initMime();
 }
 
-winux::String HttpServerConfig::getMime( winux::String const & extName ) const
+winux::String HttpAppConfig::getMime( winux::String const & extName ) const
 {
     return winux::isset( this->mime, extName ) ? this->mime.at(extName) : "application/octet-stream";
 }
 
-void HttpServerConfig::initMime()
+void HttpAppConfig::initMime()
 {
     this->mime = {
         { "html", "text/html" },

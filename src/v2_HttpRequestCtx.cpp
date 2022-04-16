@@ -1,5 +1,5 @@
 ﻿#include "v2_base.hpp"
-#include "v2_HttpServerConfig.hpp"
+#include "v2_HttpAppConfig.hpp"
 #include "v2_HttpApp.hpp"
 #include "v2_HttpRequestCtx.hpp"
 
@@ -180,7 +180,7 @@ bool HttpRequestCtx::processData( void * data )
     this->url.parse( this->header.getUrl(), false, true, true, true, true );
 
     // 服务器配置对象
-    HttpServerConfig & httpConfig = static_cast<HttpApp *>(this->app)->httpConfig;
+    HttpAppConfig & httpConfig = static_cast<HttpApp *>(this->app)->httpConfig;
 
     // 应该处理GET/POST/COOKIES/ENVIRON
     // 清空原先数据

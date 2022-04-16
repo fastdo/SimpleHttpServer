@@ -1,5 +1,5 @@
 ﻿#include "v2_base.hpp"
-#include "v2_HttpServerConfig.hpp"
+#include "v2_HttpAppConfig.hpp"
 #include "v2_HttpApp.hpp"
 #include "v2_HttpRequestCtx.hpp"
 #include "v2_HttpOutputMgr.hpp"
@@ -389,14 +389,12 @@ void HttpApp::onClientRequestInternal( winux::SharedPointer<HttpRequestCtx> requ
 
                         if ( this->_verbose )
                             winux::ColorOutputLine( winux::fgAqua, "读取到了文件`", fullPath, "`" );
-                        //winux::ColorOutputLine( winux::fgFuchsia, "Static file=", fullPath, ", size:", data.getSize() );
+
                     }
                 }
             }
             else
             {
-                //winux::ColorOutputLine( winux::fgFuchsia, "Static file=", fullPath );
-
                 rsp.header.setResponseLine( "HTTP/1.1 404 Not found", false );
 
                 auto content = winux::FileGetContentsEx( this->httpConfig.errorPages["404"], false );
