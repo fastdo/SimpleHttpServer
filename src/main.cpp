@@ -152,32 +152,6 @@ int startup()
     FileSessionServer sessServ{ sessionsSavePath };
     app.setSessServ(&sessServ);
 
-    /*app.route( "GET,POST", "/testdir/index/abc/xyz/123", [] ( SharedPointer<HttpRequestCtx> ctx, Response & RSP ) {
-        Request & REQ = RSP.request;
-        App & APP = *REQ.app;
-
-        RSP << "<h1>handle route</h1>\n";
-        RSP << "GET: " << REQ.get.getVars().myJson(true,"  ","\n") << endl;
-        RSP << "POST: " << REQ.post.getVars().myJson(true,"  ","\n") << endl;
-        RSP << "COOKIES: " << REQ.cookies.dump().myJson(true,"  ","\n") << endl;
-        RSP << "<hr/>\n";
-        RSP << REQ.dumpEnv() << endl;
-        RSP << "<hr/>\n";
-        RSP << APP.dumpEnv() << endl;
-    } );
-
-    auto fn = [] ( SharedPointer<HttpRequestCtx> ctx, Response & RSP, StringArray const & urlPathPartArr, size_t i ) -> bool {
-        cout << Mixed(urlPathPartArr[i]).myJson() << ", " << Mixed( StrJoinEx( "/", urlPathPartArr, i + 1 ) ).myJson() << endl;
-        return true;
-    };
-
-    app.crossRoute( "*", "/", fn );
-    app.crossRoute( "*", "/testdir", fn );
-    app.crossRoute( "*", "/testdir/index", fn );
-    app.crossRoute( "*", "/testdir/index/abc", fn );
-    app.crossRoute( "*", "/testdir/index/abc/xyz", fn );
-    app.crossRoute( "*", "/testdir/index/abc/xyz/123", fn );//*/
-
     return app.run(nullptr);
 }
 
