@@ -3,7 +3,18 @@
 #include "v2_HttpApp.hpp"
 #include "v2_HttpRequestCtx.hpp"
 #include "v2_HttpOutputMgr.hpp"
-#include "fcgiserv.hpp"
+#include "appserv.hpp"
+
+#if defined(OS_WIN)
+    #include <process.h>
+
+    #define getpid _getpid
+#else
+    #include <sys/types.h>
+    #include <sys/ipc.h>
+    #include <sys/msg.h>
+    #include <unistd.h>
+#endif
 
 namespace v2
 {
@@ -15,9 +26,9 @@ int startup()
 {
     SocketLib initSock;
 
-    xAppServerData myAppServerData;
-    myAppServerData.fcgiservPath = GetExecutablePath();
-    myAppServerData.pid = GetCurrentProcessId();
+    AppServerExternalData myAppServerData;
+    myAppServerData.serverPath = GetExecutablePath();
+    myAppServerData.pid = getpid();
 
     ConfigureSettings cfg;
     String exeFile;

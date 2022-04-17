@@ -7,8 +7,8 @@
 namespace v2
 {
 
-HttpApp::HttpApp( winux::ConfigureSettings const & settings, struct xAppServerData * servData ) :
-    App( settings, servData ),
+HttpApp::HttpApp( winux::ConfigureSettings const & settings, AppServerExternalData * externalData ) :
+    App( settings, externalData ),
     Server(),
     httpConfig(settings),
     _staticFileCache(httpConfig.cacheLifeTime)
@@ -26,7 +26,7 @@ HttpApp::HttpApp( winux::ConfigureSettings const & settings, struct xAppServerDa
 
 HttpApp::HttpApp(
     winux::ConfigureSettings const & settings,
-    struct xAppServerData * servData,
+    AppServerExternalData * externalData,
     eiennet::ip::EndPoint const & ep,
     int threadCount,
     int backlog,
@@ -35,7 +35,7 @@ HttpApp::HttpApp(
     bool verbose,
     int cacheLifeTime
 ) :
-    App( settings, servData ),
+    App( settings, externalData ),
     Server(),
     httpConfig( settings, ep, threadCount, backlog, serverWait, verboseInterval, verbose, cacheLifeTime ),
     _staticFileCache(httpConfig.cacheLifeTime)

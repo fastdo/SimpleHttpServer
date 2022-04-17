@@ -20,7 +20,7 @@ public:
     using RouteHandlerFunction = std::function< void ( winux::SharedPointer<HttpRequestCtx> requestCtxPtr, eienwebx::Response & RSP ) >;
 
     /** \brief 构造函数1 */
-    HttpApp( winux::ConfigureSettings const & settings, struct xAppServerData * servData );
+    HttpApp( winux::ConfigureSettings const & settings, AppServerExternalData * externalData );
 
     /** \brief 构造函数2
      *
@@ -33,7 +33,7 @@ public:
      *  \param cacheLifeTime 静态文件缓存时间 */
     HttpApp(
         winux::ConfigureSettings const & settings,
-        struct xAppServerData * servData,
+        AppServerExternalData * externalData,
         eiennet::ip::EndPoint const & ep,
         int threadCount = 4,
         int backlog = 0,
