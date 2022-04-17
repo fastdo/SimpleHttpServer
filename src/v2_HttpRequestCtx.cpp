@@ -3,6 +3,8 @@
 #include "v2_HttpApp.hpp"
 #include "v2_HttpRequestCtx.hpp"
 
+#include <appserv.hpp>
+
 namespace v2
 {
 
@@ -199,7 +201,7 @@ bool HttpRequestCtx::processData( void * data )
     // 注册一些环境变量
     this->environVars["ORIG_PATH_INFO"] = "/" + urlRawPathStr;
     this->environVars["SERVER_SOFTWARE"] = "SimpleHttpServer/1.0";
-    this->environVars["FASTDO_VERSION"] = "0.6.1";
+    this->environVars["FASTDO_VERSION"] = this->app->getExternalData()->fastdoVer;
     this->environVars["REQUEST_URI"] = this->header.getUrl();
     if ( this->header.hasHeader("Referer") ) this->environVars["HTTP_REFERER"] = this->header["Referer"];
     this->environVars["DOCUMENT_ROOT"] = httpConfig.documentRoot;
