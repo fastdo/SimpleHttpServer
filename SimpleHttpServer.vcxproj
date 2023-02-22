@@ -164,18 +164,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\v2_base.cpp" />
-    <ClCompile Include="src\v2_HttpApp.cpp" />
-    <ClCompile Include="src\v2_HttpRequestCtx.cpp" />
-    <ClCompile Include="src\v2_HttpAppConfig.cpp" />
-    <ClCompile Include="src\v2_HttpOutputMgr.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\v2_base.hpp" />
-    <ClInclude Include="src\v2_HttpApp.hpp" />
-    <ClInclude Include="src\v2_HttpRequestCtx.hpp" />
-    <ClInclude Include="src\v2_HttpAppConfig.hpp" />
-    <ClInclude Include="src\v2_HttpOutputMgr.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="server.settings" />

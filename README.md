@@ -7,11 +7,11 @@
 #### Windows:
 
 1. 安装 Microsoft Visual C++ 2017 x64
-2. 安装 FastDo v0.6.1+
+2. 安装 FastDo v0.6.4+
 
 #### Linux:
 1. 安装 GCC for C++ 4.8+
-2. 安装 FastDo v0.6.1+
+2. 安装 FastDo v0.6.4+
 
 安装FastDo可以查看官方网站[作为C++库安装](https://fastdo.net/index.do?ps=document&doc_name=install_ascpp)教程。
 
@@ -29,7 +29,7 @@ HttpApp app{ ConfigureSettings{}, nullptr };
 // 注册过径路由，过径路由是指URL只要路过就会触发，并且你可以控制是否继续。
 // 第一个参数表示HTTP方法，"*"表示通配所有HTTP方法，也可以是逗号分隔的方法列表串，如：GET,POST,PUT
 // 第二个参数表示路径，"/"是每一个URL都会过径的路径
-app.crossRoute( "*", "/", [] ( auto clientCtx, eienwebx::Response & rsp, auto parts, auto i ) -> bool {
+app.crossRoute( "*", "/", [] ( auto clientCtx, Response & rsp, auto parts, auto i ) -> bool {
     // 执行一些操作
     return true; // 返回true表示继续查找并执行路由处理，返回false表示终止路由过程
 } );
@@ -37,7 +37,7 @@ app.crossRoute( "*", "/", [] ( auto clientCtx, eienwebx::Response & rsp, auto pa
 // 注册普通路由
 // 第一个参数表示HTTP方法，"*"表示通配所有HTTP方法，也可以是逗号分隔的方法列表串，如：GET,POST,PUT
 // 第二个参数表示路径
-app.route( "GET,POST", "/hello", [] ( auto clientCtx, eienwebx::Response & rsp ) {
+app.route( "GET,POST", "/hello", [] ( auto clientCtx, Response & rsp ) {
     rsp << "Hello, SimpleHttpServer!\n";
 } );
 
@@ -47,21 +47,19 @@ app.run(nullptr);
 
 #### JSON响应
 ```C++
-app.route( "GET", "/json", [] ( auto clientCtx, eienwebx::Response & rsp ) {
-    Mixed v;
-    v.addPair()
-        ( "status", "Running..." )
-        ( "error", 0 )
-    ;
-
+app.route( "GET", "/json", [] ( auto clientCtx, Response & rsp ) {
+    Mixed v = $c{
+        { "status", "Running..." },
+        { "error", 0 }
+    };
     rsp << v;
 } );
 ```
 
 #### 获取GET,POST,COOKIES变量
 ```C++
-app.route( "GET,POST", "/vars", [] ( auto clientCtx, eienwebx::Response & rsp ) {
-    eienwebx::Request & req = rsp.request;
+app.route( "GET,POST", "/vars", [] ( auto clientCtx, Response & rsp ) {
+    Request & req = rsp.request;
     rsp << "GET: a = " << req.get["a"] << endl;
     rsp << "POST: b = " << req.post["b"].toInt() << endl;
     rsp << "COOKIES: c = " << req.cookies["c"] << endl;
@@ -70,8 +68,8 @@ app.route( "GET,POST", "/vars", [] ( auto clientCtx, eienwebx::Response & rsp ) 
 
 #### 文件上传
 ```C++
-app.route( "POST", "/upload", [] ( auto clientCtx, eienwebx::Response & rsp ) {
-    eienwebx::Request & req = rsp.request;
+app.route( "POST", "/upload", [] ( auto clientCtx, Response & rsp ) {
+    Request & req = rsp.request;
     Mixed & myfile = req.post["myfile"];
     if ( myfile["path"] )
     {
@@ -86,15 +84,15 @@ app.route( "POST", "/upload", [] ( auto clientCtx, eienwebx::Response & rsp ) {
 
 #### 数据库查询
 ```C++
-app.route( "*", "/database", [] ( auto clientCtx, eienwebx::Response & rsp ) {
-    Mixed dbConfig;
-    dbConfig.createCollection();
-    dbConfig["driver"] = "mysql";
-    dbConfig["host"] = "localhost";
-    dbConfig["user"] = "root";
-    dbConfig["pwd"] = "123";
-    dbConfig["dbname"] = "test";
-    dbConfig["charset"] = "utf-8";
+app.route( "*", "/database", [] ( auto clientCtx, Response & rsp ) {
+    Mixed dbConfig = $c{
+        { "driver", "mysql" },
+        { "host", "localhost" },
+        { "user", "root" },
+        { "pwd", "123" },
+        { "dbname", "test" },
+        { "charset", "utf-8" }
+    };
 
     Database db{dbConfig};
     auto rs = db->query("select * from mytable1");
